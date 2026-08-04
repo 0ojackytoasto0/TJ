@@ -37,6 +37,13 @@ export function bindPasswordGate({ sessionKey, passwordHash, onUnlock }) {
     onUnlock();
   };
 
+  // Empty / missing hash = no password
+  if (!passwordHash || !String(passwordHash).trim()) {
+    if (gate) gate.hidden = true;
+    unlock();
+    return;
+  }
+
   if (isUnlocked(sessionKey)) {
     if (gate) gate.hidden = true;
     onUnlock();

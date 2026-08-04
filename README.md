@@ -2,7 +2,7 @@
 
 基于 [XrayPapa/TJ](https://github.com/XrayPapa/TJ) 的中文模拟调教直播间，增加了：
 
-- **访问密码**（进入前校验）
+- **访问密码**（可选：`data/site.json` 里 `passwordHash` 为空则无密码）
 - **癖好开关**（开播前勾选）
 - **主人称呼 / 称呼池** 可改
 - **配置导入导出**（保存在浏览器 `localStorage`）
@@ -21,10 +21,13 @@ npx --yes serve .
 
 然后打开提示的地址（通常是 `http://localhost:3000`）。
 
-**默认密码：** `tj-change-me`  
-上线前请立刻改掉。
+**当前：无密码**（`passwordHash` 为空，直接进 18+ 确认页）。
 
-## 修改密码
+## 设置 / 关闭密码
+
+**关闭密码：** 把 [`data/site.json`](data/site.json) 的 `passwordHash` 设为 `""`。
+
+**开启密码：**
 
 1. 打开 [`tools/hash-password.html`](tools/hash-password.html)（可用浏览器直接打开）。
 2. 输入新密码，复制生成的 SHA-256 十六进制字符串。
@@ -57,10 +60,27 @@ npx --yes serve .
 
 若仓库名不是根站点，确认相对路径 `css/`、`js/`、`data/` 能打开（本项目使用相对路径，适合 project pages）。
 
-## 语音
+## 语音（MP3 包 · iPhone 友好）
 
-默认使用浏览器 **本地语音（Web Speech）**，方便自定义任务即时朗读。  
-设置里仍保留「云扬 / 云希」MP3 包选项；若未放入 `tts/` 资源包，请继续用「本地」。
+默认音色包为 **云扬（MP3）**，与原库一样用 `Audio` 播放，在 iPhone 上比系统朗读稳。
+
+### 生成语音包
+
+```bash
+pip install -r requirements.txt
+python 生成语音.py --dry              # 查看有多少条文本
+python 生成语音.py --voice yunyang    # 生成云扬（推荐先跑这个）
+python 生成语音.py --voice both       # 云扬 + 云希
+python 生成语音.py --limit 5          # 调试：每包先生成 5 条
+```
+
+- 脚本从 [`data/tasks/`](data/tasks/) 收集任务与台词，输出到 [`tts/yunyang/`](tts/) 等。
+- 哈希规则与前端 `ttsHash(normTTS(...))` 一致。
+- 改任务文案后需**重新运行**脚本，才会有对应 mp3。
+- 生成中的网络请求走 Edge TTS，需能访问外网；全量可能要较久。
+- 生成完成后把整个 `tts/` 目录一并部署到 GitHub Pages。
+
+未找到 mp3 时会自动回退到 **本地系统语音**。
 
 ## 重新提取上游数据（可选）
 

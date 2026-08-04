@@ -353,7 +353,7 @@ if('speechSynthesis' in window){
   };
 }
 /* ===== MP3 语音包（预生成男声）===== */
-let ttsPack='local';
+let ttsPack='yunyang';
 const TTS_PACKS={yunyang:'云扬 · 男声包（默认）',yunxi:'云希 · 男声包',local:'本地语音'};
 const TTS_CDN='';
 let ttsAudio=null,ttsPre=null,ttsGen=0,ttsStartTimer=null,ttsBurstEnd=0,ttsQueue=[];
@@ -363,7 +363,8 @@ function ttsHash(txt){
   return h.toString(16);
 }
 function normTTS(txt){
-  return fixTTS(String(txt).replace(/\{n\}/g,'骚狗').replace(/\{c\}/g,'骚狗').replace(/\s+/g,' '));
+  var host=(window.TJ&&TJ.hostName)||(CONFIG&&CONFIG.hostName)||'主人';
+  return fixTTS(String(txt).replace(/\{n\}/g,'骚狗').replace(/\{c\}/g,'骚狗').replace(/\{host\}/g,host).replace(/\s+/g,' '));
 }
 function ttsUrl(txt){
   return (TTS_CDN||'')+'tts/'+ttsPack+'/'+ttsHash(normTTS(txt))+'.mp3';

@@ -116,9 +116,9 @@ async function main() {
   await loadScript('js/game.js');
   status.remove();
 
-  // Default pack UI to local
+  // Default pack UI to yunyang (MP3); fall back to local when files missing
   document.querySelectorAll('.packbtn').forEach((b) => {
-    b.classList.toggle('sel', b.dataset.pack === 'local');
+    b.classList.toggle('sel', b.dataset.pack === 'yunyang');
   });
 
   bindPasswordGate({
