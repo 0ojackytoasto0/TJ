@@ -1,0 +1,29 @@
+{
+  "kinks": [
+    { "id": "脚", "label": "脚", "icon": "👣", "enabled": true },
+    { "id": "袜子", "label": "袜子", "icon": "🧦", "enabled": true },
+    { "id": "内裤", "label": "内裤", "icon": "🩲", "enabled": true },
+    { "id": "鞋子", "label": "鞋子", "icon": "👟", "enabled": true },
+    { "id": "龟头责", "label": "龟头责", "icon": "🍆", "enabled": true },
+    { "id": "尿液", "label": "尿液", "icon": "💦", "enabled": true },
+    { "id": "睾丸", "label": "睾丸", "icon": "🥚", "enabled": true },
+    { "id": "边缘", "label": "边缘", "icon": "🫠", "enabled": true },
+    { "id": "寸止", "label": "寸止", "icon": "✋", "enabled": true },
+    { "id": "肛门", "label": "肛门", "icon": "🍑", "enabled": true },
+    { "id": "羞耻姿势", "label": "羞耻姿势", "icon": "🙇", "enabled": true },
+    { "id": "雄堕", "label": "雄堕", "icon": "🐶", "enabled": true },
+    { "id": "体训", "label": "体训", "icon": "💪", "enabled": true },
+    { "id": "夹子", "label": "夹子", "icon": "🔗", "enabled": true },
+    { "id": "马桶", "label": "马桶", "icon": "🚽", "enabled": true },
+    { "id": "饮尿", "label": "饮尿", "icon": "🥂", "enabled": true },
+    { "id": "身体涂写", "label": "身体涂写", "icon": "🖊️", "enabled": true },
+    {
+      "id": "假鸡巴",
+      "label": "后庭插入（假鸡巴 / 肛塞）",
+      "icon": "🍆",
+      "enabled": false,
+      "featured": true,
+      "blurb": "开启后：流程中增加「后庭插入」专场，并在指令/惩罚/点菜等环节加入肛塞与假鸡巴任务。请备好润滑，量力而行，不适立刻安全停播。"
+    }
+  ]
+}

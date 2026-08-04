@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>调教直播间</title>
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+
+<video id="cam" autoplay muted playsinline></video>
+<div id="fallback"></div>
+<div id="frame"><i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i></div>
+<div id="vignette"></div>
+
+<div id="console" class="glass" hidden>
+  <header id="topbar">
+    <div class="livewrap">
+      <div class="live"><span class="dot"></span>LIVE</div>
+    </div>
+    <div id="stageLabel"><span data-brand>调教室</span></div>
+    <div id="viewBadge" class="viewbadge v-low">0 人在看</div>
+    <button id="pauseBtn" class="pausebtn" data-tip="暂停（画面遮挡）" title="暂停">⏸</button>
+    <button id="safeStop" class="safestop" title="安全停播">🛑 停播</button>
+    <div class="sessionbar"><i id="sessProg"></i></div>
+    <div id="stats" class="statsrow" hidden>
+      <div class="pill" id="pill-obey"><span>服从</span><div class="bar"><i id="b-obey"></i></div><b id="n-obey">20</b></div>
+      <div class="pill" id="pill-shame"><span>羞耻</span><div class="bar"><i id="b-shame"></i></div><b id="n-shame">10</b></div>
+      <div class="pill" id="pill-heat"><span>热度</span><div class="bar"><i id="b-heat"></i></div><b id="n-heat">20</b></div>
+      <div class="pill" id="pill-sta"><span>体力</span><div class="bar"><i id="b-stamina"></i></div><b id="n-stamina">90</b></div>
+    </div>
+  </header>
+  <div id="taskcard">
+    <div class="tc-top">
+      <span id="kinktag" class="chip"></span>
+      <span id="nicktag" class="chip gold">上播选手：</span>
+      <span id="combo" class="chip hot" hidden>连击×0</span>
+      <span id="prog">任务 0/0</span>
+      <span class="elapsed" id="elapsed">00:00</span>
+    </div>
+    <div class="pbar"><i id="progress"></i></div>
+    <div class="tc-meta">
+      <div id="tccap"><span data-host>主人</span> 下达指令</div>
+      <div id="subLabel"></div>
+    </div>
+    <div id="msgline" class="msgline" hidden></div>
+    <div id="tasktext"></div>
+    <div id="micpanel" hidden>
+      <div class="micwrap idle">
+        <div class="micring"><span id="micicon" class="micicon">🎙️</span></div>
+        <div class="eq"><i></i><i></i><i></i><i></i><i></i></div>
+        <span class="recdot">● REC</span>
+      </div>
+      <div id="micState">语音问答开启中</div>
+      <div id="micHint"></div>
+    </div>
+    <div id="ttsrow">
+      <button class="tts" id="ttsPlay">▶ 重读</button>
+      <button class="tts" id="ttsPause">⏸ 停读</button>
+      <button class="tts" id="ttsStop">⏹ 清除</button>
+      <button class="tts" id="ttsMute">🔊 语音</button>
+      <button class="tts" id="sfxMute">🔊 音效</button>
+      <span class="locallive">🔒 仅本地预览</span>
+    </div>
+  </div>
+</div>
+
+<div id="papatoast" class="glass" hidden></div>
+<div id="eventtoast" class="glass" hidden></div>
+<div id="actBanner"></div>
+
+<div id="audience" class="glass" hidden>
+  <div class="aud-head"><span>💬 弹幕</span><span id="viewers">128 人在线</span></div>
+<div id="audMsgs"></div>
+</div>
+
+<div id="countdown" class="glass" hidden>
+  <div class="cd-head">
+    <div id="jerkTitle">倒计时撸管</div>
+    <div class="bpm-chip">BPM <b id="bpmNum">0</b></div>
+  </div>
+  <div class="ringwrap">
+    <div id="pulseRing"></div>
+    <svg width="150" height="150" viewBox="0 0 120 120">
+      <circle cx="60" cy="60" r="54" stroke="rgba(255,255,255,.12)" stroke-width="8" fill="none"/>
+      <circle id="ring" cx="60" cy="60" r="54" stroke="#ff2d78" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="339.29" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+    </svg>
+    <div id="timer">01:00</div>
+    <div id="preCount" hidden>3</div>
+  </div>
+  <div class="beatbar"><i id="beatbar"></i></div>
+  <div class="cd-meta">
+    <span>第 <b id="beatCount">0</b> 拍</span>
+    <span id="restTag" hidden>✋ 寸止休息中</span>
+  </div>
+  <div id="stepText"></div>
+</div>
+
+<div id="buttons" hidden>
+  <button id="btnA" class="act pillbtn a"><span class="bicon">✓</span><span class="blabel">已乖乖照做</span></button>
+  <button id="btnB" class="act pillbtn b"><span class="bicon">✕</span><span class="blabel">做不到…</span></button>
+</div>
+
+<div id="pwgate" class="overlay">
+  <div class="card glass">
+    <h1>🔒 进入调教室</h1>
+    <p class="warn">本站为私人页面。请输入访问密码。</p>
+    <label>访问密码</label>
+    <input id="pwInput" type="password" autocomplete="current-password" placeholder="输入密码" />
+    <div id="pwErr"></div>
+    <button class="act a big" id="pwUnlock" style="margin-top:14px">解锁进入</button>
+    <p class="hint">密码仅在浏览器本地校验（GitHub Pages 无服务端加密）。公开仓库仍可下载源码。</p>
+  </div>
+</div>
+<div id="agegate" class="overlay" hidden>
+  <div class="card glass">
+    <h1><span data-brand>调教室</span></h1>
+    <p class="warn">本页面包含<b>露骨的成人性内容</b>，仅供 18 岁以上成年人在私密、自愿的场合使用。</p>
+    <p class="warn" style="font-size:12px;color:rgba(255,255,255,.55)">内容为虚构角色扮演，全程自愿。摄像头画面仅在本机显示，不会上传或录制。</p>
+    <div class="health">
+      <b>健康声明</b><br>
+      ① 出现疼痛、麻木、呼吸不畅或情绪不适，请立即使用「安全停播」；<br>
+      ② 冰、束缚、憋尿、高强度体训等动作量力而行，切勿勉强；<br>
+      ③ 患有心脑血管、神经、泌尿系统疾病或正在服药者请勿参与；<br>
+      ④ 全程自愿，「安全停播」不会记为失败。
+    </div>
+    <label class="prism-checkbox prism-checkbox--large" id="ageCheckWrap">
+      <input type="checkbox" id="ageCheck" class="prism-checkbox__input" aria-label="我已成年，自愿进入">
+      <span class="prism-checkbox__box" aria-hidden="true">
+        <span class="prism-checkbox__grid"></span>
+        <span class="prism-checkbox__glow"></span>
+        <svg class="prism-checkbox__check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 12.5L9.5 17L19 7.5"></path></svg>
+        <span class="prism-checkbox__particle prism-checkbox__particle--1"></span>
+        <span class="prism-checkbox__particle prism-checkbox__particle--2"></span>
+        <span class="prism-checkbox__particle prism-checkbox__particle--3"></span>
+        <span class="prism-checkbox__particle prism-checkbox__particle--4"></span>
+        <span class="prism-checkbox__particle prism-checkbox__particle--5"></span>
+        <span class="prism-checkbox__particle prism-checkbox__particle--6"></span>
+      </span>
+      <span class="prism-checkbox__content">
+        <span class="prism-checkbox__label">我已满 18 岁，自愿走进这间调教室</span>
+        <span class="prism-checkbox__description">接受 <span data-host>主人</span> 的规则，此后一切指令都是你自找的</span>
+      </span>
+    </label>
+    <button class="act big btn-neon" id="ageOK" disabled>我已成年，确认进入</button>
+    <button class="act big btn-ghost" id="ageNo">离开</button>
+  </div>
+</div>
+
+<div id="setup" class="overlay" hidden>
+  <div class="card glass">
+    <h1>开播设置</h1>
+    <div class="nickwrap" id="nickwrap">
+      <input id="nick" maxlength="12" placeholder="你的昵称" value="" autocomplete="off">
+      <button id="nickConfirm" class="nickbtn" type="button" data-tip="确认昵称" title="确认昵称">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <div id="nickState" class="hint">点右侧 ✓ 确认你的昵称</div>
+    <label>模式</label>
+    <div class="modes">
+      <button class="mode sel" data-m="easy">简单<br><small>10-15 分钟</small></button>
+      <button class="mode" data-m="hard">困难<br><small>30-45 分钟</small></button>
+    </div>
+    <div class="setwrap" id="setwrap">
+      <button class="sethero" id="settingsBtn" type="button">
+        <span class="sethero-icon">⚙️</span>
+        <span class="sethero-main">游戏设置<small>摄像头 · 主人口吻 · 音效</small></span>
+        <span class="sethero-badge">重要</span>
+      </button>
+      <div class="settip">先在这里打开摄像头，直播画面才完整</div>
+    </div>
+    
+<label>主人称呼</label>
+<input id="hostNameIn" type="text" maxlength="24" placeholder="主人" />
+<label>称呼池（逗号分隔）</label>
+<textarea id="callNamesIn" placeholder="骚狗,废狗,..."></textarea>
+<div id="featuredKinks"></div>
+<label>启用癖好（关闭后不会抽到）</label>
+<div id="kinkGrid" class="kink-grid"></div>
+<div class="cfg-actions">
+  <button type="button" class="act mid" id="cfgExport">导出配置</button>
+  <button type="button" class="act mid" id="cfgImport">导入配置</button>
+  <input type="file" id="cfgFile" accept="application/json,.json" hidden />
+</div>
+
+<button class="act big btn-pink" id="startBtn">进入直播间</button>
+    <div class="hint">本游戏为模拟调教直播间，所有内容仅显示效果，无实际直播、上传内容；</div>
+  </div>
+</div>
+
+<div id="ending" class="overlay" hidden>
+  <div class="card glass wide">
+    <div id="endTitle"></div>
+    <div id="endLines"></div>
+    <div id="endStats"></div>
+    <button class="act big btn-pink" id="replayBtn">再来一次</button>
+  </div>
+</div>
+
+<div id="settingsModal" class="overlay" hidden>
+  <div class="card glass">
+    <h1>⚙️ 游戏设置</h1>
+    <div class="set-sec">
+      <div class="set-head"><span class="set-head-l"><span class="set-title">📷 摄像头</span><em class="cam-reco">建议开启</em></span><span class="camind"><i id="camDot" class="camdot"></i><b id="camLabel" class="cam-label">CAM OFF</b></span></div>
+      <button class="act mid btn-blue-glass" id="camBtn" style="width:100%">📷 开启摄像头</button>
+      <div class="cam-note" id="camNote">画面只在你的设备上模拟显示，不会上传，也不会真的开播。</div>
+    </div>
+    <div class="set-sec">
+      <div class="set-head"><span class="set-title">主人口吻</span><button class="tts" id="ttsTest" style="padding:6px 12px">🔊 试听</button></div>
+      <div class="xp-switch-row"><span>主人音色</span><button class="tts" id="voicePickBtn" style="padding:6px 14px">🎙️ 切换音色</button></div>
+      <div class="xp-switch-row"><span>音色包</span><span class="packbtns" id="packBtns">
+        <button type="button" class="packbtn" data-pack="yunyang">云扬</button>
+        <button type="button" class="packbtn" data-pack="yunxi">云希</button>
+        <button type="button" class="packbtn sel" data-pack="local">本地</button>
+      </span></div>
+      <label>语速 <span id="rateVal">0.92</span></label>
+      <input type="range" id="rateSlider" min="0.5" max="1.4" step="0.05" value="0.92">
+      <label>音调 <span id="pitchVal">0.62</span> <em class="pitch-note" id="pitchNote" hidden>MP3 包不支持，仅本地语音可调</em></label>
+      <input type="range" id="pitchSlider" min="0.3" max="1.3" step="0.05" value="0.62">
+      <div class="xp-switch-row"><span>主人口吻自动朗读</span><label class="xp-switch"><input type="checkbox" id="voiceTTS" checked><i></i></label></div>
+      <div class="xp-switch-row"><span>直播音效提示</span><label class="xp-switch"><input type="checkbox" id="voiceSFX" checked><i></i></label></div>
+    </div>
+    <button class="act big btn-pink" id="settingsClose">完成</button>
+  </div>
+</div>
+
+<div id="voicePick" class="overlay" hidden>
+  <div class="card glass">
+    <h1>🎙️ 选择主人音色</h1>
+    <p class="hint" style="text-align:center;margin-top:0">点一个听一下，选中的就是主人口吻。</p>
+    <div id="voiceHint" class="voice-hint"></div>
+    <div id="voiceList" class="vlist"></div>
+    <button class="act big btn-pink" id="voicePickClose">完成</button>
+  </div>
+</div>
+
+<div id="pauseOverlay" class="overlay" hidden>
+  <div class="card glass">
+    <h1>⏸ 已暂停</h1>
+    <p class="hint" style="text-align:center;color:rgba(255,220,230,.7)">画面已遮盖，倒计时、节拍、弹幕全部冻结。</p>
+    <button class="act big btn-pink" id="pauseResume">继续调教</button>
+    <button class="act big btn-blue-glass" id="pauseExit" style="margin-top:10px">退出直播</button>
+    <button class="act big btn-red-glass" id="pauseRestart">重新开始</button>
+  </div>
+</div>
+
+<div id="safeConfirm" class="overlay" hidden>
+  <div class="card glass">
+    <h1>🛑 安全停播</h1>
+    <p class="warn" style="text-align:center">确定要紧急停播吗？<br>直播将立即结束，主人会温柔安抚你。<br><b>不会记为失败。</b></p>
+    <button class="act big btn-pink" id="safeYes">确认停播</button>
+    <button class="act big btn-ghost" id="safeNo">继续直播</button>
+  </div>
+</div>
+
+<div id="safeEnd" class="overlay" hidden>
+  <div class="card glass wide">
+    <div id="safeTitle">🛑 安全停播 · 温柔安抚</div>
+    <div id="safeLines"></div>
+    <button class="act big btn-pink" id="safeReplay">好好休息 · 回到开播设置</button>
+  </div>
+</div>
+
+
+
+<script type="module" src="js/boot.js"></script>
+</body>
+</html>
