@@ -105,23 +105,8 @@ body.facetime-mode .sessionbar i {
   letter-spacing: 1px;
 }
 
-/* 私信面板 */
-body.facetime-mode #audience.private-chat {
-  border-color: rgba(52, 199, 89, 0.18);
-  background: rgba(8, 14, 12, 0.4);
-}
-body.facetime-mode #audience .aud-head {
-  color: rgba(184, 255, 200, 0.8);
-}
-body.facetime-mode #audMsgs .msg {
-  background: rgba(30, 48, 40, 0.55);
-  border-radius: 10px 10px 10px 3px;
-  padding: 5px 8px;
-}
-body.facetime-mode #audMsgs .msg .cn.host,
-body.facetime-mode #audMsgs .msg .cn {
-  color: #7dff9a !important;
-  font-weight: 800;
+body.facetime-mode #audience {
+  display: none !important;
 }
 
 /* 按钮区略偏绿确认色 */

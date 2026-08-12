@@ -172,7 +172,11 @@ function buildInsertTasks(){
 function buildTasks(type,act){
   const hard=S.mode==='hard';
   switch(type){
-    case 'intro': return DATA.intro.map(function(x){return {...x};});
+    case 'intro': return DATA.intro.map(function(x){
+      var t=Object.assign({},x);
+      if(isCall())delete t.speak; // 一对一：不开口问答，只听指令
+      return t;
+    });
     case 'warmup': return drawPool('instruct',2,function(t){return t.w;});
     case 'instruct': {
       const n=hard?R(3,4):R(2,3);
@@ -224,7 +228,39 @@ function makeStage(type,act){
   st.tasks=buildTasks(type,st.act);
   return st;
 }
+/** 一对一：强度阶梯推进，无休息问答 / 无私信刷屏 */
+function buildCallSchedule(){
+  const hard=S.mode==='hard';
+  const stages=[];
+  if(!skipIntroSel)stages.push({type:'intro',act:0});
+  // 幕1 · 进状态：热身 → 轻指令 → 跟读 → 体训
+  stages.push({type:'warmup',act:1});
+  stages.push({type:'instruct',act:1});
+  stages.push({type:'recite',act:1});
+  if(hard)stages.push({type:'instruct',act:1});
+  stages.push({type:'train',act:1});
+  // 幕2 · 加压：指令加深 → 体训 → 首次惩罚 → 可选撸管
+  stages.push({type:'instruct',act:2});
+  stages.push({type:'train',act:2});
+  stages.push({type:'instruct',act:2});
+  if(hard)stages.push({type:'recite',act:2});
+  stages.push({type:'punish',act:2});
+  if(hard||Math.random()<0.6)stages.push({type:'jerk',act:2});
+  // 幕3 · 顶点：高强度指令 → 主人加码 → 惩罚 → 撸管
+  stages.push({type:'instruct',act:3});
+  stages.push({type:'order',act:3});
+  stages.push({type:'punish',act:3});
+  if(hard)stages.push({type:'instruct',act:3});
+  stages.push({type:'jerk',act:3});
+  if(window.TJ&&TJ.enabledKinks&&TJ.enabledKinks.has('假鸡巴')){
+    stages.push({type:'insert',act:3});
+  }
+  stages.push({type:'climax',act:4});
+  stages.push({type:'aftercare',act:4});
+  return stages;
+}
 function buildSchedule(){
+  if(isCall())return buildCallSchedule();
   const hard=S.mode==='hard';
   const stages=[];
   if(!skipIntroSel)stages.push({type:'intro',act:0});
@@ -605,6 +641,7 @@ function sfx(name){
 let cint=null,elapsedInt=null,toastTimer=null,papaTimer=null,viewInt=null,actBannerTimer=null,msgTimer=null;
 function startCommentLoop(){
   stopCommentLoop();
+  if(isCall())return; // 一对一无私信墙
   cint=setInterval(function(){
     if(S.silentT>0){S.silentT-=250;return;}
     pushComment(nextComment());
@@ -709,13 +746,14 @@ function gcomment(g){
   const item=cands.length?pick(cands):pick(pool);
   return {name:isCall()?hostLabel():pick(S.audience),text:P(item.t)};
 }
-function cheerComments(){for(let i=0;i<R(1,2);i++)pushComment(gcomment('cheer'));}
-function booComments(){for(let i=0;i<R(1,3);i++)pushComment(gcomment('boo'));}
-function dirtyBurst(){for(let i=0;i<R(2,3);i++)pushComment(gcomment('dirty'));}
+function cheerComments(){if(isCall())return;for(let i=0;i<R(1,2);i++)pushComment(gcomment('cheer'));}
+function booComments(){if(isCall())return;for(let i=0;i<R(1,3);i++)pushComment(gcomment('boo'));}
+function dirtyBurst(){if(isCall())return;for(let i=0;i<R(2,3);i++)pushComment(gcomment('dirty'));}
 function endComments(){
+  if(isCall())return;
   const ends=commentPool().filter(c=>c.end);
   if(!ends.length)return;
-  for(let i=0;i<R(1,2);i++)pushComment({name:isCall()?hostLabel():pick(S.audience),text:P(pick(ends).t)});
+  for(let i=0;i<R(1,2);i++)pushComment({name:pick(S.audience),text:P(pick(ends).t)});
 }
 
 /* ================= 提示 ================= */
@@ -853,12 +891,12 @@ function renderTask(task){
     case 'aftercare':setBtn('btnA','已完成');if(b)b.hidden=true;break;
     default:setBtn('btnA','已乖乖照做');setBtn('btnB','做不到…');
   }
-  if(st.type==='chat'){
+  if(st.type==='chat'&&!isCall()){
     S.chatState='ask';
-    setMicState('idle',isCall()?'语音问答开启中 · 主人听得见你':'语音问答开启中 · 直播间能听到你','主人正在朗读问题，听完请开口回答');
-  }else if(st.type==='intro'&&task.speak){
+    setMicState('idle','语音问答开启中 · 直播间能听到你','主人正在朗读问题，听完请开口回答');
+  }else if(st.type==='intro'&&task.speak&&!isCall()){
     S.chatState='ask';
-    setMicState('idle',isCall()?'语音确认中 · 主人听得见你':'语音确认中 · 直播间能听到你','主人读完后，请开口回答，答完点「回答完毕」');
+    setMicState('idle','语音确认中 · 直播间能听到你','主人读完后，请开口回答，答完点「回答完毕」');
     setBtn('btnA','开始回答');setBtn('btnB','跳过引导');
   }else{
     setHidden('micpanel',true);
@@ -930,37 +968,96 @@ function beginPreCount(cb){
     }
   },700);
 }
-/* ================= 节拍器（参考节奏边缘的律动设计） ================= */
+/* ================= 节拍器（BPM 跟随口令，不抢写指示） ================= */
 let metroTimer=null,metroBpm=0,metroBeat=0,metroRestUntil=0,metroNextVar=0;
 let metroPauseBpm=null,metroPauseBeat=0,metroPauseRestRemain=0;
+let metroIntent='base'; // base | slow | mid | fast | sprint | rest
+function metroBpmRange(){
+  const v=CONFIG.BPM_VAR||[60,150];
+  return {lo:v[0],hi:v[1]};
+}
+function setMetroBpm(bpm,intent){
+  const r=metroBpmRange();
+  const next=clamp(Math.round(bpm),r.lo,r.hi);
+  if(intent)metroIntent=intent;
+  if(next===metroBpm){
+    const bn=$('bpmNum');
+    if(bn)bn.textContent=String(metroBpm);
+    return;
+  }
+  metroBpm=next;
+  const bn=$('bpmNum');
+  if(bn){
+    bn.textContent=String(metroBpm);
+    bn.classList.remove('pop');
+    void bn.offsetWidth;
+    bn.classList.add('pop');
+  }
+}
+/** 根据口令文本驱动节拍：加速/减速/寸止休息 */
+function applyStepToMetro(txt){
+  const t=String(txt||'');
+  // 休息 / 寸止：停拍，时长尽量贴合文案里的「N秒」
+  if(/寸止|撒手|停[！!。]|休息|不许碰|双手举过|捏住根部停|边缘[！!]/.test(t)){
+    let sec=R(...(CONFIG.METRO_REST||[8,15]));
+    const m=t.match(/(\d+)\s*秒/);
+    if(m)sec=clamp(parseInt(m[1],10),5,45);
+    else if(/三次|深呼吸/.test(t))sec=clamp(sec,8,12);
+    else if(/边缘/.test(t)&&!/冲|逼近|接近/.test(t))sec=clamp(sec,6,12);
+    metroRest(sec);
+    metroIntent='rest';
+    return;
+  }
+  if(/冲刺|最快|全力|更快更用力|翻白眼/.test(t)){
+    setMetroBpm(R(128,148),'sprint');
+    return;
+  }
+  if(/快一点|加速|往边缘冲|逼近边缘|冲上边缘|快节奏|使劲|用力撸/.test(t)){
+    setMetroBpm(R(112,128),'fast');
+    return;
+  }
+  if(/慢|匀速|慢慢|热身|寻找感觉|轻轻|轻柔/.test(t)){
+    setMetroBpm(R(72,90),'slow');
+    return;
+  }
+  if(/继续|开始撸|保持|进入节奏/.test(t)){
+    const base=CONFIG.BPM_BASE||[78,112];
+    setMetroBpm(R(base[0],base[1]),'mid');
+  }
+}
 function metroStart(bpm){
   metroStop();
-  metroBpm=bpm||R(...CONFIG.BPM_BASE);
+  const base=CONFIG.BPM_BASE||[78,112];
+  metroBpm=bpm||R(base[0],base[1]);
+  metroIntent='base';
   metroBeat=0;
   metroRestUntil=0;
-  metroNextVar=Date.now()+R(...CONFIG.VAR_INTERVAL);
-  $('bpmNum').textContent=String(metroBpm);
-  $('beatCount').textContent='0';
-  $('restTag').hidden=true;
-  $('pulseRing').classList.remove('rest');
+  metroNextVar=Date.now()+R(...(CONFIG.VAR_INTERVAL||[12000,20000]));
+  setText('bpmNum',String(metroBpm));
+  setText('beatCount','0');
+  setHidden('restTag',true);
+  const pr=$('pulseRing');
+  if(pr)pr.classList.remove('rest');
   metroSchedule();
 }
 function metroResume(){
   metroStop();
-  if(!metroPauseBpm){metroStart(R(...CONFIG.BPM_BASE));return;}
+  if(!metroPauseBpm){metroStart();return;}
   metroBpm=metroPauseBpm;
-  $('bpmNum').textContent=String(metroBpm);
-  $('beatCount').textContent=String(metroPauseBeat||0);
+  setText('bpmNum',String(metroBpm));
+  setText('beatCount',String(metroPauseBeat||0));
   if(metroPauseRestRemain>0){
     metroRestUntil=Date.now()+metroPauseRestRemain;
-    $('restTag').hidden=false;
-    $('pulseRing').classList.add('rest');
+    setHidden('restTag',false);
+    const pr=$('pulseRing');
+    if(pr)pr.classList.add('rest');
   }else{
     metroRestUntil=0;
-    $('restTag').hidden=true;
-    $('pulseRing').classList.remove('rest');
+    setHidden('restTag',true);
+    const pr=$('pulseRing');
+    if(pr)pr.classList.remove('rest');
   }
-  metroNextVar=Date.now()+R(...CONFIG.VAR_INTERVAL);
+  metroNextVar=Date.now()+R(...(CONFIG.VAR_INTERVAL||[12000,20000]));
   metroSchedule();
 }
 function metroStop(){
@@ -974,36 +1071,45 @@ function metroSchedule(){
       metroSchedule();
       return;
     }
-    if(!$('restTag').hidden){$('restTag').hidden=true;$('pulseRing').classList.remove('rest');}
+    const rt=$('restTag');
+    if(rt&&!rt.hidden){
+      rt.hidden=true;
+      const pr=$('pulseRing');
+      if(pr)pr.classList.remove('rest');
+      // 休息结束：回到中速，避免立刻冲刺
+      if(metroIntent==='rest'){
+        const base=CONFIG.BPM_BASE||[78,112];
+        setMetroBpm(R(base[0],Math.min(base[1],100)),'mid');
+      }
+    }
     metroBeat++;
     const accent=metroBeat%4===0;
     tone(860+(metroBpm/250)*180,0.12,'sine',accent?0.12:0.06);
     if(accent)tone(1290,0.09,'sine',0.07,0.02);
     pulseBeat();
-    $('beatCount').textContent=String(metroBeat);
-    $('beatbar').style.width=(metroBeat%32)/32*100+'%';
-    if(Date.now()>=metroNextVar){
-      const old=metroBpm;
-      metroBpm=R(...CONFIG.BPM_VAR);
-      const bn=$('bpmNum');
-      bn.textContent=String(metroBpm);
-      bn.classList.remove('pop');
-      void bn.offsetWidth;
-      bn.classList.add('pop');
-      $('stepText').textContent=(metroBpm>old?'变奏 · 加速 ':'变奏 · 减速 ')+metroBpm+' BPM，跟上节拍！';
+    setText('beatCount',String(metroBeat));
+    const bb=$('beatbar');
+    if(bb)bb.style.width=(metroBeat%32)/32*100+'%';
+    // 轻漂移：只改数字，绝不覆盖口令 stepText
+    if(Date.now()>=metroNextVar&&metroIntent!=='rest'&&metroIntent!=='sprint'){
+      const drift=metroIntent==='slow'?R(-4,3):(metroIntent==='fast'?R(-3,5):R(-6,6));
+      setMetroBpm(metroBpm+drift,metroIntent);
       sfx('tick');
-      metroNextVar=Date.now()+R(...CONFIG.VAR_INTERVAL);
+      metroNextVar=Date.now()+R(...(CONFIG.VAR_INTERVAL||[12000,20000]));
     }
     metroSchedule();
   },metroInterval());
 }
 function metroRest(sec){
   metroRestUntil=Date.now()+sec*1000;
-  $('restTag').hidden=false;
-  $('pulseRing').classList.add('rest');
+  metroIntent='rest';
+  setHidden('restTag',false);
+  const pr=$('pulseRing');
+  if(pr)pr.classList.add('rest');
 }
 function pulseBeat(){
   const pr=$('pulseRing');
+  if(!pr)return;
   pr.classList.remove('beat');
   void pr.offsetWidth;
   pr.style.setProperty('--beatms',Math.round(metroInterval())+'ms');
@@ -1013,23 +1119,36 @@ function renderTimer(){
   if(!currentJerk)return;
   const remain=Math.max(0,Math.round((jerkEnd-Date.now())/1000));
   const m=Math.floor(remain/60),s=remain%60;
-  $('timer').textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  setText('timer',(m<10?'0':'')+m+':'+(s<10?'0':'')+s);
   const frac=jerkDur>0?remain/jerkDur:0;
-  $('ring').style.strokeDashoffset=CONFIG.RING_C*frac;
+  const ring=$('ring');
+  if(ring)ring.style.strokeDashoffset=CONFIG.RING_C*frac;
   const pct=100*(1-frac);
   const steps=currentJerk.steps||[];
   while(jerkStep<steps.length&&steps[jerkStep].p<=pct){
     const stp=steps[jerkStep];
-    $('stepText').textContent=stp.txt;
+    const line=P(stp.txt);
+    setText('stepText',line);
     speak(stp.txt,{rate:1.05});
     for(let i=0;i<(stp.n||1);i++)tone(950,.06,'square',.05,i*.12);
-    if(stp.txt.indexOf('寸止')>=0)metroRest(R(...CONFIG.METRO_REST));
+    applyStepToMetro(stp.txt);
+    if(steps[jerkStep+1])preloadTts(steps[jerkStep+1].txt);
     jerkStep++;
   }
   if(remain<=30&&remain>0&&!jerkWarn){
     jerkWarn=true;
-    $('stepText').textContent='最后 30 秒，不许停！';
     tone(1000,.25,'square',.1);
+    // 不覆盖当前口令（尤其寸止/边缘）；只在无休息且口令不是停手类时轻提示
+    const resting=Date.now()<metroRestUntil;
+    const cur=steps[Math.max(0,jerkStep-1)];
+    const stopish=cur&&/寸止|撒手|停[！!]|休息|边缘[！!]|不许射/.test(cur.txt);
+    if(!resting&&!stopish){
+      const tip=$('stepText');
+      if(tip&&!/变奏/.test(tip.textContent||'')){
+        // 附加提示到现有口令后，避免整段被盖掉
+        tip.textContent=(tip.textContent||'')+'（最后 30 秒，跟上节拍）';
+      }
+    }
   }
   if(remain<=0)endJerk();
 }
@@ -1236,6 +1355,7 @@ function stageComplete(){
 function maybeEvent(){
   const st=S.stages[S.si];
   if(['jerk','climax','aftercare','warmup','intro','insert'].includes(st.type))return;
+  if(isCall()&&(st.act||0)<2)return; // 一对一前半段不插随机事件，保证递进
   if(S.refusals>=2&&!S.chainAudienceAngry){
     S.chainAudienceAngry=true;
     fireEvent(findEvent('观众报复'));
@@ -1469,7 +1589,7 @@ function resumeGame(){
     chatTimer=setTimeout(answerDone,Math.max(500,chatRemainMs));
   }
   jerkRemainMs=null;chatRemainMs=null;
-  startCommentLoop();
+  if(!isCall())startCommentLoop();
   updateViewers();
   viewInt=setInterval(updateViewers,4000);
   elapsedInt=setInterval(function(){
@@ -1620,7 +1740,7 @@ function startGame(){
   setHidden('topbar',false);
   setHidden('taskcard',false);
   setHidden('stats',false);
-  setHidden('audience',false);
+  setHidden('audience',isCall()); // 一对一：不显示私信墙
   setHidden('buttons',false);
   setHidden('safeStop',false);
   if(isCall()){
@@ -1632,7 +1752,7 @@ function startGame(){
   setTimeout(fitTopbar,250);
   sfx('start');
   if(!(S.stages[0]&&S.stages[0].type==='intro'))papaToast(pick(DATA.papaOpen),4);
-  startCommentLoop();
+  if(!isCall())startCommentLoop();
   updateViewers();
   viewInt=setInterval(updateViewers,4000);
   elapsedInt=setInterval(function(){
