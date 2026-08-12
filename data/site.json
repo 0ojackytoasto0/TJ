@@ -2,6 +2,8 @@
   "brandName": "调教室",
   "hostName": "主人",
   "frameCaption": "调教直播间",
+  "callBrandName": "私人通话",
+  "callFrameCaption": "私人视频通话",
   "passwordHash": "",
   "storageKey": "tj_cfg_v1",
   "sessionUnlockKey": "tjUnlocked",

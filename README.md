@@ -8,6 +8,7 @@
 - **配置导入导出**（保存在浏览器 `localStorage`）
 - 额外癖好包：**夹子 / 马桶 / 饮尿 / 身体涂写**
 - **可选加强：后庭插入（假鸡巴 / 肛塞）** — 开启后增加专场环节，并在其他环节混入相关任务
+- **一对一视频通话模式**（[`facetime/`](facetime/)）— 同一套任务引擎，呈现为与主人的私人通话（无观众弹幕）
 
 > 仅供 18+ 自愿私密使用。摄像头画面只在本机预览，不会上传。
 
@@ -20,6 +21,13 @@ npx --yes serve .
 ```
 
 然后打开提示的地址（通常是 `http://localhost:3000`）。
+
+| 路径 | 模式 |
+|------|------|
+| `/` | 多人直播间（LIVE、弹幕、观众点菜） |
+| `/facetime/` | 一对一视频通话（通话中、主人私信、主人加码） |
+
+GitHub Pages 上对应 `https://<用户名>.github.io/<仓库名>/` 与 `.../facetime/`。
 
 **当前：无密码**（`passwordHash` 为空，直接进 18+ 确认页）。
 
@@ -40,9 +48,10 @@ npx --yes serve .
 
 | 文件 | 作用 |
 |------|------|
-| [`data/site.json`](data/site.json) | 品牌名、主人称呼、密码哈希、难度/节奏参数 |
+| [`data/site.json`](data/site.json) | 品牌名、主人称呼、密码哈希、难度/节奏参数；`callBrandName` / `callFrameCaption` 供 facetime 页展示 |
 | [`data/kinks.json`](data/kinks.json) | 癖好目录与默认开关 |
 | [`data/tasks/*.json`](data/tasks/) | 任务池、弹幕、台词 |
+| [`facetime/`](facetime/) | 一对一通话入口（独立 `localStorage` 键 `tj_facetime_cfg_v1`，复用上级 `data/` 与 `tts/`） |
 
 开播设置页也可以改主人称呼、称呼池和癖好开关；点「导出配置」可备份，刷新后仍会从 `localStorage` 恢复。
 

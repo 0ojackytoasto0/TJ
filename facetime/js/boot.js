@@ -1,4 +1,4 @@
-import { bindPasswordGate } from './auth.js';
+import { bindPasswordGate } from '../../js/auth.js';
 import {
   loadAllData,
   loadLocalOverrides,
@@ -7,7 +7,10 @@ import {
   applyOverridesToUI,
   enabledKinkSet,
   exportConfigBlob
-} from './config.js';
+} from '../../js/config.js';
+
+const STORAGE_KEY = 'tj_facetime_cfg_v1';
+const SESSION_KEY = 'tjFacetimeUnlocked';
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -23,26 +26,33 @@ function syncRuntime(bundle, overrides) {
   const host = (overrides && overrides.hostName) || bundle.site.hostName || '主人';
   const callNames = (overrides && overrides.callNames) || bundle.DATA.callNames;
   window.TJ = window.TJ || {};
-  if (!TJ.mode) TJ.mode = 'live';
+  TJ.mode = 'facetime';
   TJ.hostName = host;
   TJ.enabledKinks = enabledKinkSet(bundle.kinks, overrides);
-  TJ.preferKinks = new Set(); // reserved for future UI
+  TJ.preferKinks = new Set();
   if (window.CONFIG) {
     CONFIG.hostName = host;
-    CONFIG.brandName = bundle.site.brandName;
+    CONFIG.brandName = bundle.site.callBrandName || bundle.site.brandName;
+    CONFIG.HOST_COMMENT_CHANCE = Math.max(CONFIG.HOST_COMMENT_CHANCE || 0.15, 0.55);
   }
   if (window.DATA && callNames) DATA.callNames = callNames.slice();
   if (window.TJGame) {
-    TJGame.applyBrand({ ...bundle.site, hostName: host });
+    TJGame.applyBrand({
+      ...bundle.site,
+      hostName: host,
+      brandName: bundle.site.callBrandName || bundle.site.brandName || '私人通话',
+      frameCaption: bundle.site.callFrameCaption || bundle.site.frameCaption || '私人视频通话'
+    });
     TJGame.setCallNames(callNames);
   }
+  const face = document.getElementById('hostPipFace');
+  if (face) face.textContent = (host && host[0]) || '主';
 }
 
 function wireConfigUI(bundle) {
   const key = bundle.storageKey;
   let overrides = loadLocalOverrides(key) || {};
 
-  // seed callNames on site for UI
   bundle.site.callNames = bundle.DATA.callNames;
   applyOverridesToUI(bundle.site, bundle.kinks, overrides);
   syncRuntime(bundle, overrides);
@@ -63,7 +73,7 @@ function wireConfigUI(bundle) {
     const blob = exportConfigBlob(overrides);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'tj-config.json';
+    a.download = 'tj-facetime-config.json';
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -88,36 +98,47 @@ function wireConfigUI(bundle) {
     e.target.value = '';
   });
 
-  // Persist kink/host right before start
   const startBtn = document.getElementById('startBtn');
-  if (startBtn) {
-    startBtn.addEventListener('click', persist, true);
-  }
+  if (startBtn) startBtn.addEventListener('click', persist, true);
 }
 
 async function main() {
   const status = document.createElement('div');
   status.id = 'bootStatus';
-  status.style.cssText = 'position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#050508;color:#ffd7e5;font-family:system-ui,sans-serif';
-  status.textContent = '加载调教室…';
+  status.style.cssText =
+    'position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#05080c;color:#b8ffc8;font-family:system-ui,sans-serif';
+  status.textContent = '接通私人通话…';
   document.body.appendChild(status);
+
+  // MP3 语音包相对 facetime/ 在上一级
+  window.TTS_CDN = '../';
 
   let bundle;
   try {
-    bundle = await loadAllData('data');
+    bundle = await loadAllData('../data');
   } catch (e) {
-    status.innerHTML = '<div style="max-width:360px;padding:24px;text-align:center"><h2>加载失败</h2><p style="opacity:.8;line-height:1.5">请用本地服务器打开（GitHub Pages 或 <code>npx serve</code>），不要直接双击 HTML。<br><br>' + e.message + '</p></div>';
+    status.innerHTML =
+      '<div style="max-width:360px;padding:24px;text-align:center"><h2>加载失败</h2><p style="opacity:.8;line-height:1.5">请用本地服务器打开（GitHub Pages 或 <code>npx serve</code>），不要直接双击 HTML。<br><br>' +
+      e.message +
+      '</p></div>';
     return;
   }
 
+  bundle.storageKey = STORAGE_KEY;
+  bundle.sessionUnlockKey = SESSION_KEY;
+
   window.CONFIG = bundle.CONFIG;
   window.DATA = bundle.DATA;
-  window.TJ = { mode: 'live', hostName: bundle.site.hostName || '主人', enabledKinks: new Set(), preferKinks: new Set() };
+  window.TJ = {
+    mode: 'facetime',
+    hostName: bundle.site.hostName || '主人',
+    enabledKinks: new Set(),
+    preferKinks: new Set()
+  };
 
-  await loadScript('js/game.js');
+  await loadScript('../js/game.js');
   status.remove();
 
-  // Default pack UI to yunyang (MP3); fall back to local when files missing
   document.querySelectorAll('.packbtn').forEach((b) => {
     b.classList.toggle('sel', b.dataset.pack === 'yunyang');
   });
@@ -126,15 +147,21 @@ async function main() {
     sessionKey: bundle.sessionUnlockKey,
     passwordHash: bundle.site.passwordHash,
     onUnlock: () => {
-      ['setup', 'ending', 'settingsModal', 'voicePick', 'pauseOverlay', 'safeConfirm', 'safeEnd', 'console'].forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) el.hidden = true;
-      });
+      ['setup', 'ending', 'settingsModal', 'voicePick', 'pauseOverlay', 'safeConfirm', 'safeEnd', 'console', 'hostPip'].forEach(
+        (id) => {
+          const el = document.getElementById(id);
+          if (el) el.hidden = true;
+        }
+      );
       const age = document.getElementById('agegate');
       if (age) age.hidden = false;
       wireConfigUI(bundle);
       if (window.TJGame) {
-        TJGame.applyBrand(bundle.site);
+        TJGame.applyBrand({
+          ...bundle.site,
+          brandName: bundle.site.callBrandName || '私人通话',
+          frameCaption: bundle.site.callFrameCaption || '私人视频通话'
+        });
         TJGame.init();
       }
     }

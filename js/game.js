@@ -11,16 +11,49 @@ function pick(a){return a[Math.floor(Math.random()*a.length)];}
 function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function fmtTime(ms){var s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
-function P(txt){var host=(window.TJ&&TJ.hostName)||(CONFIG&&CONFIG.hostName)||'主人';return String(txt).replace(/\{n\}/g,S.nick).replace(/\{c\}/g,pick(DATA.callNames)).replace(/\{host\}/g,host);}
+function isCall(){return !!(window.TJ&&TJ.mode==='facetime');}
+function hostLabel(){return (window.TJ&&TJ.hostName)||(CONFIG&&CONFIG.hostName)||'主人';}
+function phrase(txt){
+  var s=String(txt==null?'':txt);
+  if(!isCall())return s;
+  return s
+    .replace(/直播间/g,'通话')
+    .replace(/模拟观众/g,'主人')
+    .replace(/观众们/g,'主人')
+    .replace(/观众/g,'主人')
+    .replace(/弹幕/g,'私信')
+    .replace(/开播/g,'接通')
+    .replace(/停播/g,'挂断')
+    .replace(/上播/g,'接通')
+    .replace(/主播/g,'你')
+    .replace(/在线围观/g,'盯着你')
+    .replace(/人在看/g,'人一通')
+    .replace(/人在线/g,'加密通道');
+}
+function P(txt){
+  var host=hostLabel();
+  var nick=(S&&S.nick)||'骚狗';
+  var names=(DATA&&DATA.callNames&&DATA.callNames.length)?DATA.callNames:['骚狗'];
+  return phrase(String(txt)
+    .replace(/\{n\}/g,nick)
+    .replace(/\{c\}/g,pick(names))
+    .replace(/\{host\}/g,host));
+}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function setText(id,txt){var el=$(id);if(el)el.textContent=txt;}
+function setHtml(id,html){var el=$(id);if(el)el.innerHTML=html;}
+function setHidden(id,v){var el=$(id);if(el)el.hidden=!!v;}
 
 /* ================= 状态 / 存档 ================= */
 let S=null;
 let modeSel='easy';
+let skipIntroSel=false;
 let busy=false;
 let nickConfirmed=false;
 let paused=false,jerkRemainMs=null,chatRemainMs=null,chatDeadline=0;
 const LABELS={warmup:'开场热身',intro:'开播引导',instruct:'指令性任务',train:'体训任务',jerk:'倒计时撸管',chat:'休息问答',punish:'惩罚任务',order:'观众点菜',recite:'口令跟读',insert:'后庭插入',climax:'高潮收束',aftercare:'后调安抚'};
+const LABELS_CALL={warmup:'开场热身',intro:'接通引导',instruct:'指令性任务',train:'体训任务',jerk:'倒计时撸管',chat:'休息问答',punish:'惩罚任务',order:'主人加码',recite:'口令跟读',insert:'后庭插入',climax:'高潮收束',aftercare:'后调安抚'};
+function stageLabelOf(type){return (isCall()?LABELS_CALL:LABELS)[type]||type;}
 
 function newState(nick,mode){
   return {
@@ -42,11 +75,13 @@ function saveGame(){
 }
 function unlock(){
   busy=false;
-  $('btnA').disabled=false;$('btnA').classList.remove('dim');
-  $('btnB').disabled=false;$('btnB').classList.remove('dim');
+  const a=$('btnA'),b=$('btnB');
+  if(a){a.disabled=false;a.classList.remove('dim');}
+  if(b){b.disabled=false;b.classList.remove('dim');}
 }
 function setBtn(id,label){
   const b=$(id);
+  if(!b)return;
   const lb=b.querySelector?b.querySelector('.blabel'):null;
   if(lb)lb.textContent=label;
 }
@@ -185,14 +220,14 @@ function pickFinale(){
   return {...pick(DATA.finale)};
 }
 function makeStage(type,act){
-  const st={type:type,label:LABELS[type],act:(act===undefined?2:act),tasks:[],idx:0};
+  const st={type:type,label:stageLabelOf(type),act:(act===undefined?2:act),tasks:[],idx:0};
   st.tasks=buildTasks(type,st.act);
   return st;
 }
 function buildSchedule(){
   const hard=S.mode==='hard';
   const stages=[];
-  stages.push({type:'intro',act:0});
+  if(!skipIntroSel)stages.push({type:'intro',act:0});
   function fill(n,act,pool){
     let chatSince=0,prev='';
     for(let i=0;i<n;i++){
@@ -390,7 +425,7 @@ function micOnStart(){
     const st=S.stages[S.si];
     const tk=st.tasks[st.idx];
     if((st.type==='chat'||(st.type==='intro'&&tk&&tk.speak))&&S.chatState==='ask'){
-      setMicState('speaking','🔊 主人朗读中 · 直播间开着麦','问题读完后，会提示你开口回答');
+      setMicState('speaking',isCall()?'🔊 主人朗读中 · 通话麦开着':'🔊 主人朗读中 · 直播间开着麦','问题读完后，会提示你开口回答');
     }
   }
 }
@@ -399,7 +434,7 @@ function micOnEnd(){
     const st=S.stages[S.si];
     const tk=st.tasks[st.idx];
     if((st.type==='chat'||(st.type==='intro'&&tk&&tk.speak))&&S.chatState==='ask'){
-      setMicState('ready','🎙️ 直播间能听到你 · 请回答','答完点「回答完毕」继续，或点「跳过问题」');
+      setMicState('ready',isCall()?'🎙️ 主人听得见你 · 请回答':'🎙️ 直播间能听到你 · 请回答','答完点「回答完毕」继续，或点「跳过问题」');
     }
   }
 }
@@ -502,7 +537,14 @@ function speak(txt,opts){
   playNow(finalText,opts);
 }
 function fixTTS(txt){
-  return String(txt)
+  var s=String(txt);
+  if(isCall()){
+    return s
+      .replace(/调教室/g,'私人通话')
+      .replace(/调教房/g,'私人通话')
+      .replace(/调教直播间/g,'私人通话');
+  }
+  return s
     .replace(/调教室/g,'调教直播间')
     .replace(/调教房/g,'调教直播间');
 }
@@ -592,7 +634,11 @@ function filterPool(){
   return matched.length?matched.concat(generic):generic.concat(pool.filter(c=>!c.end));
 }
 function nextComment(){
-  if(DATA.comments.host&&DATA.comments.host.length&&Math.random()<CONFIG.HOST_COMMENT_CHANCE){
+  const host=hostLabel();
+  if(isCall()&&DATA.comments.host&&DATA.comments.host.length&&Math.random()<0.45){
+    return {name:host,text:P(pick(DATA.comments.host).t)};
+  }
+  if(!isCall()&&DATA.comments.host&&DATA.comments.host.length&&Math.random()<CONFIG.HOST_COMMENT_CHANCE){
     return {name:pick(S.audience),text:P(pick(DATA.comments.host).t)};
   }
   const pool=filterPool();
@@ -607,20 +653,24 @@ function nextComment(){
   for(const k of Object.keys(w)){r-=w[k];if(r<=0){g=k;break;}}
   const cands=pool.filter(c=>c.g===g);
   const item=cands.length?pick(cands):pick(pool);
-  return {name:pick(S.audience),text:P(item.t)};
+  return {name:isCall()?host:pick(S.audience),text:P(item.t)};
 }
 function pushComment(c){
+  const box=$('audMsgs');
+  if(!box)return;
   const el=document.createElement('div');
   el.className='msg';
+  const name=isCall()?hostLabel():c.name;
   let ci=0;
-  for(let i=0;i<c.name.length;i++)ci=(ci+c.name.charCodeAt(i)*7)%8;
+  for(let i=0;i<name.length;i++)ci=(ci+name.charCodeAt(i)*7)%8;
   const cols=['#7fd0ff','#ffb36b','#9dff8a','#ff8ad8','#8ad8ff','#ffe27a','#c0a5ff','#7affd4'];
-  el.innerHTML='<span class="cn" style="color:'+cols[ci]+'">'+esc(c.name)+'</span><span class="ct">'+esc(c.text)+'</span>';
-  $('audMsgs').appendChild(el);
-  const aud=$('audMsgs');
-  let trim=aud.children.length-CONFIG.COMMENT_MAX+1;
-  while(trim>0&&aud.children.length>=CONFIG.COMMENT_MAX){
-    const old=aud.firstChild;
+  const nameCls=isCall()?'cn host':'cn';
+  const nameColor=isCall()?'#7dff9a':cols[ci];
+  el.innerHTML='<span class="'+nameCls+'" style="color:'+nameColor+'">'+esc(name)+'</span><span class="ct">'+esc(c.text)+'</span>';
+  box.appendChild(el);
+  let trim=box.children.length-CONFIG.COMMENT_MAX+1;
+  while(trim>0&&box.children.length>=CONFIG.COMMENT_MAX){
+    const old=box.firstChild;
     old.classList.add('bye');
     (function(o){setTimeout(function(){try{o.remove();}catch(e){}},220);})(old);
     trim--;
@@ -628,9 +678,17 @@ function pushComment(c){
   sfx('pop');
 }
 function updateViewers(){
+  if(isCall()){
+    const el=$('viewers');
+    if(el)el.textContent='一对一 · 加密通话';
+    const cd=$('callDuration');
+    if(cd&&S)cd.textContent=fmtTime(Date.now()-S.startedAt);
+    return;
+  }
   const base=CONFIG.VIEWER_BASE+S.stats.heat*3;
   const n=Math.max(24,base+R(-8,12));
-  $('viewers').textContent=n+' 模拟观众在线';
+  const vw=$('viewers');
+  if(vw)vw.textContent=n+' 模拟观众在线';
   const vb=$('viewBadge');
   if(!vb)return;
   vb.textContent=n+' 模拟观众';
@@ -649,7 +707,7 @@ function gcomment(g){
   const pool=filterPool();
   const cands=pool.filter(c=>c.g===g);
   const item=cands.length?pick(cands):pick(pool);
-  return {name:pick(S.audience),text:P(item.t)};
+  return {name:isCall()?hostLabel():pick(S.audience),text:P(item.t)};
 }
 function cheerComments(){for(let i=0;i<R(1,2);i++)pushComment(gcomment('cheer'));}
 function booComments(){for(let i=0;i<R(1,3);i++)pushComment(gcomment('boo'));}
@@ -657,7 +715,7 @@ function dirtyBurst(){for(let i=0;i<R(2,3);i++)pushComment(gcomment('dirty'));}
 function endComments(){
   const ends=commentPool().filter(c=>c.end);
   if(!ends.length)return;
-  for(let i=0;i<R(1,2);i++)pushComment({name:pick(S.audience),text:P(pick(ends).t)});
+  for(let i=0;i<R(1,2);i++)pushComment({name:isCall()?hostLabel():pick(S.audience),text:P(pick(ends).t)});
 }
 
 /* ================= 提示 ================= */
@@ -671,11 +729,11 @@ function setMsgLine(html,gold,hold){
   msgTimer=setTimeout(function(){ml.hidden=true;},(hold||7)*1000);
 }
 function papaToast(txt,hold){
-  setMsgLine('<b>{host}：</b>'+esc(P(txt)),false,hold||7);
+  setMsgLine('<b>'+esc(hostLabel())+'：</b>'+esc(P(txt)),false,hold||7);
   speak(txt);
 }
 function showToast(title,txt){
-  setMsgLine('<b>'+esc(title)+'</b>　'+esc(txt),true,7);
+  setMsgLine('<b>'+esc(title)+'</b>　'+esc(phrase(txt||'')),true,7);
 }
 
 /* ================= 数值 ================= */
@@ -711,16 +769,24 @@ function renderStats(){
   }
   S._lastStats={obey:s.obey,shame:s.shame,heat:s.heat,stamina:s.stamina};
   if(!S._tFlags)S._tFlags={};
-  if(s.heat>=80&&!S._tFlags.heat80){S._tFlags.heat80=true;showToast('🔥 直播间爆火','观众暴涨，弹幕刷屏，所有人都在看你发骚。');}
+  if(s.heat>=80&&!S._tFlags.heat80){
+    S._tFlags.heat80=true;
+    if(isCall())showToast('🔥 主人越来越兴奋','这通电话里只剩你和他，他越看越满意。');
+    else showToast('🔥 直播间爆火','观众暴涨，弹幕刷屏，所有人都在看你发骚。');
+  }
   if(s.obey>=70&&!S._tFlags.obey70){S._tFlags.obey70=true;papaToast('服从度上来了，{c}。主人开始信任你了。',3);}
-  if(s.shame>=70&&!S._tFlags.shame70){S._tFlags.shame70=true;showToast('💦 羞耻爆表','你的脸已经红透了，观众看得更起劲。');}
+  if(s.shame>=70&&!S._tFlags.shame70){
+    S._tFlags.shame70=true;
+    if(isCall())showToast('💦 羞耻爆表','你的脸已经红透了，主人盯着你看。');
+    else showToast('💦 羞耻爆表','你的脸已经红透了，观众看得更起劲。');
+  }
   if(s.shame>=90&&!S._tFlags.shame90){S._tFlags.shame90=true;papaToast('羞耻值要爆了，{c}。再继续下去，今晚只能崩溃收场。',3.5);}
   const ps=$('pill-shame');
   if(ps)ps.classList.toggle('crash-warn',s.shame>=80);
   if(S.mode==='hard'&&s.stamina!=null&&s.stamina<30&&!S._tFlags.stam30){S._tFlags.stam30=true;papaToast('体力快见底了，{c}。还能撑住吗？',3);}
   setBar('obey',s.obey);setBar('shame',s.shame);setBar('heat',s.heat);
-  if(S.mode==='hard'){$('pill-sta').hidden=false;setBar('stamina',s.stamina);}
-  else{$('pill-sta').hidden=true;}
+  if(S.mode==='hard'){setHidden('pill-sta',false);setBar('stamina',s.stamina);}
+  else{setHidden('pill-sta',true);}
 }
 function floatStat(k,d){
   const pill=$('pill-'+k)||$('stats');
@@ -731,15 +797,16 @@ function floatStat(k,d){
   setTimeout(function(){try{el.remove();}catch(e){}},950);
 }
 function setBar(key,val){
-  $('b-'+key).style.width=val+'%';
-  $('n-'+key).textContent=val;
+  const b=$('b-'+key),n=$('n-'+key);
+  if(b)b.style.width=val+'%';
+  if(n)n.textContent=val;
 }
 
 /* ================= 渲染 ================= */
 function renderStage(){
   unlock();
   const st=S.stages[S.si];
-  $('stageLabel').textContent='{host}的调教室';
+  setText('stageLabel',isCall()?(hostLabel()+'的通话'):('{host}的调教室'.replace('{host}',hostLabel())));
   const act=st.act||0;
   if(act!==S.curAct){
     S.curAct=act;
@@ -748,8 +815,9 @@ function renderStage(){
       if(DATA.actOpen[act])papaToast(pick(DATA.actOpen[act]),3.5);
     }
   }
-  $('subLabel').textContent=(act>0?'第 '+act+' 幕 · ':'')+'环节 '+(S.si+1)+'/'+S.stages.length+' · '+st.label;
-  $('sessProg').style.width=((S.si)/(S.stages.length-1)*100)+'%';
+  setText('subLabel',(act>0?'第 '+act+' 幕 · ':'')+'环节 '+(S.si+1)+'/'+S.stages.length+' · '+st.label);
+  const sp=$('sessProg');
+  if(sp)sp.style.width=((S.si)/(S.stages.length-1)*100)+'%';
   renderStats();
   if(S.stageIntro){
     S.stageIntro=false;
@@ -762,48 +830,50 @@ function renderStage(){
 }
 function renderTask(task){
   const st=S.stages[S.si];
-  $('btnA').disabled=false;$('btnA').classList.remove('dim');
-  $('btnB').disabled=false;$('btnB').classList.remove('dim');
-  $('kinktag').textContent=task.finale?'🏁 终局指令':(st.type==='intro'?'🎬 引导':((KINK_ICON[task.k]?KINK_ICON[task.k]+' ':'')+(task.k||'')));
-  $('nicktag').textContent='上播选手：'+S.nick;
-  $('prog').textContent='任务 '+(st.idx+1)+'/'+st.tasks.length;
-  $('progress').style.width=((st.idx+1)/st.tasks.length*100)+'%';
-  $('tccap').textContent=st.type==='punish'?'{host} 正在罚你 · 因为你不乖':((st.type==='chat'||st.type==='aftercare')?'{host} 开口说话':(st.type==='intro'?'{host} 引导中':'{host} 下达指令'));
-  if(S.combo>=2){$('combo').hidden=false;$('combo').textContent='连击×'+S.combo;}
-  else{$('combo').hidden=true;}
-  $('tasktext').innerHTML=esc(P(task.t))+(task.follow?'<div class="follow">追问：'+esc(P(task.follow))+'</div>':'');
+  if($('btnA')){$('btnA').disabled=false;$('btnA').classList.remove('dim');}
+  if($('btnB')){$('btnB').disabled=false;$('btnB').classList.remove('dim');}
+  setText('kinktag',task.finale?'🏁 终局指令':(st.type==='intro'?'🎬 引导':((KINK_ICON[task.k]?KINK_ICON[task.k]+' ':'')+(task.k||''))));
+  setText('nicktag',(isCall()?'通话对象：':'上播选手：')+S.nick);
+  setText('prog','任务 '+(st.idx+1)+'/'+st.tasks.length);
+  const prog=$('progress');
+  if(prog)prog.style.width=((st.idx+1)/st.tasks.length*100)+'%';
+  setText('tccap',st.type==='punish'?(hostLabel()+' 正在罚你 · 因为你不乖'):((st.type==='chat'||st.type==='aftercare')?(hostLabel()+' 开口说话'):(st.type==='intro'?(hostLabel()+' 引导中'):(hostLabel()+' 下达指令'))));
+  if(S.combo>=2){setHidden('combo',false);setText('combo','连击×'+S.combo);}
+  else{setHidden('combo',true);}
+  setHtml('tasktext',esc(P(task.t))+(task.follow?'<div class="follow">追问：'+esc(P(task.follow))+'</div>':''));
   const nt=st.tasks[st.idx+1];
   if(nt)preloadTts((nt.papa?nt.papa+' ':'')+nt.t);
   const a=$('btnA'),b=$('btnB');
-  b.hidden=false;
+  if(b)b.hidden=false;
   switch(st.type){
+    case 'intro':setBtn('btnA','已乖乖照做');setBtn('btnB','跳过引导');break;
     case 'chat':setBtn('btnA','开始回答');setBtn('btnB','跳过问题');break;
-    case 'order':setBtn('btnA','满足观众');setBtn('btnB','拒绝');break;
+    case 'order':setBtn('btnA',isCall()?'照做':'满足观众');setBtn('btnB','拒绝');break;
     case 'recite':setBtn('btnA','已大声复述');setBtn('btnB','念不出口');break;
-    case 'aftercare':setBtn('btnA','已完成');b.hidden=true;break;
+    case 'aftercare':setBtn('btnA','已完成');if(b)b.hidden=true;break;
     default:setBtn('btnA','已乖乖照做');setBtn('btnB','做不到…');
   }
   if(st.type==='chat'){
     S.chatState='ask';
-    setMicState('idle','语音问答开启中 · 直播间能听到你','主人正在朗读问题，听完请开口回答');
+    setMicState('idle',isCall()?'语音问答开启中 · 主人听得见你':'语音问答开启中 · 直播间能听到你','主人正在朗读问题，听完请开口回答');
   }else if(st.type==='intro'&&task.speak){
     S.chatState='ask';
-    setMicState('idle','语音确认中 · 直播间能听到你','主人读完后，请开口回答，答完点「回答完毕」');
-    setBtn('btnA','开始回答');setBtn('btnB','做不到…');
+    setMicState('idle',isCall()?'语音确认中 · 主人听得见你':'语音确认中 · 直播间能听到你','主人读完后，请开口回答，答完点「回答完毕」');
+    setBtn('btnA','开始回答');setBtn('btnB','跳过引导');
   }else{
-    $('micpanel').hidden=true;
+    setHidden('micpanel',true);
     clearChatTimer();
   }
   if(task.final){
     setBtn('btnA','准备好了');
-    $('btnB').hidden=true;
+    if($('btnB'))$('btnB').hidden=true;
   }
   if(task.finale){
     if(task.type==='deny'){setBtn('btnA','忍住了，没射');setBtn('btnB','没忍住，射了');}
     else{setBtn('btnA','完成了');setBtn('btnB','做不到');}
   }
-  $('countdown').hidden=true;
-  if(task.papa)setMsgLine('<b>{host}：</b>'+esc(P(task.papa)),false,6);
+  setHidden('countdown',true);
+  if(task.papa)setMsgLine('<b>'+esc(hostLabel())+'：</b>'+esc(P(task.papa)),false,6);
   speak((task.papa?task.papa+' ':'')+task.t);
   sfx('task');
 }
@@ -986,7 +1056,7 @@ function chooseA(){
   if(st.type==='chat'||(st.type==='intro'&&task.speak)){
     if(S.chatState!=='answering'){
       S.chatState='answering';
-      setMicState('listening','🎙️ 正在聆听 · 直播间都听得到你','请开口回答，答完点「回答完毕」');
+      setMicState('listening',isCall()?'🎙️ 正在聆听 · 主人听得见你':'🎙️ 正在聆听 · 直播间都听得到你','请开口回答，答完点「回答完毕」');
       setBtn('btnA','回答完毕');
       unlock();
       clearChatTimer();
@@ -1021,6 +1091,7 @@ function chooseA(){
 function chooseB(){
   const st=S.stages[S.si];
   const task=st.tasks[st.idx];
+  if(st.type==='intro'){skipIntroStage();return;}
   if(st.type==='chat'){skipChat();return;}
   if(st.type==='order'){refuseOrder();return;}
   if(task.finale){
@@ -1030,12 +1101,26 @@ function chooseB(){
   }
   failHard();
 }
+function skipIntroStage(){
+  // Neutral skip: no score / combo / skipCount impact
+  clearChatTimer();
+  stopSpeak();
+  setHidden('micpanel',true);
+  S.chatState=null;
+  papaToast(isCall()?'引导跳过了。直接开始。':'引导跳过了。直接开播。',2.2);
+  S.si++;
+  if(S.si>=S.stages.length){finishGame();return;}
+  S.stageIntro=true;
+  const ns=S.stages[S.si];
+  if(ns&&ns.tasks&&ns.tasks[0])preloadTts((ns.tasks[0].papa?ns.tasks[0].papa+' ':'')+ns.tasks[0].t);
+  renderStage();
+}
 function skipChat(){
   S.stats.obey=clamp(S.stats.obey-2,0,100);
   addShame(1);
   S.skipCount++;S.combo=0;
   sfx('boo');booComments();
-  papaToast('跳过问题？观众可都在等着呢。',2.2);
+  papaToast(isCall()?'跳过问题？主人还在等你开口。':'跳过问题？观众可都在等着呢。',2.2);
   afterAction();
 }
 let chatTimer=null;
@@ -1074,7 +1159,7 @@ function refuseOrder(){
   sfx('boo');booComments();
   const extra=drawPool('instruct',1)[0];
   st.tasks.push(extra);
-  papaToast('观众可都看着呢。拒绝一次，就加练一条。',2.8);
+  papaToast(isCall()?'在主人面前拒绝？加练一条。':'观众可都看着呢。拒绝一次，就加练一条。',2.8);
   afterAction();
 }
 function denyViolated(){
@@ -1207,7 +1292,24 @@ const EVENT_FX={
 };
 function fireEvent(ev){
   if(!ev)return;
-  showToast(ev.t,ev.txt);
+  var title=ev.t;
+  if(isCall()){
+    var map={
+      '观众报复':'主人不耐烦了',
+      '直播间爆火':'主人越来越兴奋',
+      '观众刷屏加码':'主人越说越多',
+      '观众点名':'主人点名',
+      '弹幕稽查':'镜头检查',
+      '弹幕点名':'主人点你复述',
+      '福利时间':'主人特别奖励',
+      '气氛组上线':'气氛升温',
+      '观众要后庭':'主人要后庭',
+      '全场静默':'通话静音',
+      '全员起立':'服从起立'
+    };
+    if(map[title])title=map[title];
+  }
+  showToast(title,phrase(ev.txt||''));
   var fx=ev.fx||EVENT_FX[ev.t];
   if(typeof fx==='function')fx();
   sfx('task');
@@ -1227,7 +1329,7 @@ function forceAftercare(){
   S.stages.push(makeStage('aftercare',4));
   S.si++;
   S.stageIntro=true;
-  papaToast('看来你已经到极限了……今天的直播提前进入后调。',3.5);
+  papaToast(isCall()?'看来你已经到极限了……这通电话提前进入后调。':'看来你已经到极限了……今天的直播提前进入后调。',3.5);
   dirtyBurst();
   saveGame();renderStats();renderStage();
 }
@@ -1257,6 +1359,16 @@ const ENDING={
   F:{title:'F · 禁射憋回',color:'#8be0ff',lines:['停住了，{c}。','今晚你不配射。憋回去的感觉，记住了吗？','观众有人骂你废物，也有人夸你听话。','下次表现好，主人再考虑赏你。']},
   G:{title:'G · 违规射精',color:'#ff4d4d',lines:['谁允许你射的？','我让你憋回去，你倒好，射得比谁都快。','违规的下场，就是射了也不许擦，观众看着你发臭。','滚去后调。今晚的赏，没有了。']}
 };
+const ENDING_CALL={
+  S:{title:'S · 完美通调',color:'#ffd700',lines:['做得很好，{c}。这通电话，你让主人很满意。','只有我在看着你，你伺候得很乖。','记住这种感觉——你天生就是当骚狗的料。','下次再拨过来。']},
+  A:{title:'A · 常规通调',color:'#7fd0ff',lines:['今天到这里，{c}。','不算完美，但主人看见了你的努力。','回去好好休息。','把今天没做到位的，练到做到为止。下次别让我失望。']},
+  B:{title:'B · 不配挂断',color:'#ff4d4d',lines:[]},
+  C:{title:'C · 崩溃安抚',color:'#c792ff',lines:['你已经到极限了，{c}。','靠近镜头，深呼吸，看着我。','今天挂断，主人不怪你。','你已经很乖了。下次，我会更温柔地操你。']},
+  D:{title:'D · 体力耗尽',color:'#9aa4b2',lines:['体力彻底耗尽了，{c}。','瘫在那里，主人看着你的狼狈样。','这通电话，到此为止。','回去养好体力。下次，别再让我看到你这么快趴下。']},
+  E:{title:'E · 毁灭射精',color:'#ff8a5c',lines:['射得倒是痛快，{c}。','看看你自己——精液糊了一身，跟条被打怕的野狗一样。','只有我在看着你笑话你，听见了吗？','这通电话，到此为止。回去好好记住你有多下贱。']},
+  F:{title:'F · 禁射憋回',color:'#8be0ff',lines:['停住了，{c}。','今晚你不配射。憋回去的感觉，记住了吗？','主人心里在骂你废物，也在夸你听话。','下次表现好，主人再考虑赏你。']},
+  G:{title:'G · 违规射精',color:'#ff4d4d',lines:['谁允许你射的？','我让你憋回去，你倒好，射得比谁都快。','违规的下场，就是射了也不许擦，主人看着你发臭。','滚去后调。今晚的赏，没有了。']}
+};
 function statCell(k,v){return '<div class="sc"><span>'+k+'</span><b>'+v+'</b></div>';}
 let endSeq=0;
 async function showEnding(type){
@@ -1264,19 +1376,25 @@ async function showEnding(type){
   if(camOK)stopCam();
   const seq=++endSeq;
   unlock();
-  const cfg=ENDING[type];
-  $('endTitle').textContent=cfg.title;
-  $('endTitle').style.color=cfg.color;
+  const map=isCall()?ENDING_CALL:ENDING;
+  const cfg=map[type]||ENDING[type];
+  setText('endTitle',cfg.title);
+  if($('endTitle'))$('endTitle').style.color=cfg.color;
   const box=$('endLines');
+  if(!box)return;
   box.innerHTML='';
   let lines=cfg.lines.slice();
   if(type==='B'){
-    lines=shuffle(DATA.shutdown)[0].concat(['（观众疯狂刷屏嘲讽）','把废物踢出去！','下次别来了！','就这？','【直播间已关闭】']);
+    if(isCall()){
+      lines=shuffle(DATA.shutdown)[0].concat(['（主人沉默了几秒）','废物。','下次别拨了。','就这？','【通话已结束】']);
+    }else{
+      lines=shuffle(DATA.shutdown)[0].concat(['（观众疯狂刷屏嘲讽）','把废物踢出去！','下次别来了！','就这？','【直播间已关闭】']);
+    }
     sfx('fail');
   }else{
     sfx('close');
   }
-  $('ending').hidden=false;
+  setHidden('ending',false);
   for(let i=0;i<lines.length;i++){
     if(seq!==endSeq)return;
     const d=document.createElement('div');
@@ -1288,19 +1406,19 @@ async function showEnding(type){
   }
   if(seq!==endSeq)return;
   const st=S.stats;
-  let grid=statCell('直播时长',fmtTime(Date.now()-S.startedAt))
+  let grid=statCell(isCall()?'通话时长':'直播时长',fmtTime(Date.now()-S.startedAt))
     +statCell('完成任务',S.done)
     +statCell('失败次数',S.failTotal)
     +statCell('跳过问题',S.skipCount)
-    +statCell('拒绝观众',S.refusals)
+    +statCell(isCall()?'拒绝加码': '拒绝观众',S.refusals)
     +statCell('服从度',st.obey)
     +statCell('羞耻峰值',S.maxShame)
-    +statCell('热度峰值',S.maxHeat);
+    +statCell(isCall()?'满意峰值':'热度峰值',S.maxHeat);
   if(S.mode==='hard')grid+=statCell('剩余体力',st.stamina);
   const hot=shuffle(DATA.comments.instruct).slice(0,3).map(function(c){
     return '<div class="hotc">「'+esc(P(c.t))+'」</div>';
   }).join('');
-  $('endStats').innerHTML='<h3>本局总结</h3><div class="stat-grid">'+grid+'</div><div class="hot">观众热评：'+hot+'</div>';
+  setHtml('endStats','<h3>本局总结</h3><div class="stat-grid">'+grid+'</div><div class="hot">'+(isCall()?'主人评语：':'观众热评：')+hot+'</div>');
 }
 function stopAll(){
   stopCommentLoop();stopTimer();metroStop();stopSpeak();
@@ -1354,7 +1472,10 @@ function resumeGame(){
   startCommentLoop();
   updateViewers();
   viewInt=setInterval(updateViewers,4000);
-  elapsedInt=setInterval(function(){$('elapsed').textContent=fmtTime(Date.now()-S.startedAt);},1000);
+  elapsedInt=setInterval(function(){
+    setText('elapsed',fmtTime(Date.now()-S.startedAt));
+    if(isCall())setText('callDuration',fmtTime(Date.now()-S.startedAt));
+  },1000);
 }
 function exitToSetup(){
   paused=false;
@@ -1366,7 +1487,9 @@ function exitToSetup(){
   $('pauseOverlay').hidden=true;
   stopAll();
   if(camOK)stopCam();
-  ['console','audience','buttons','countdown'].forEach(function(id){$(id).hidden=true;});
+  ['console','audience','buttons','countdown','hostPip'].forEach(function(id){setHidden(id,true);});
+  const cons=$('console');
+  if(cons)cons.classList.remove('is-live');
   $('pauseBtn').disabled=false;
   $('setup').hidden=false;
   S=null;
@@ -1416,7 +1539,11 @@ function updateCamUI(){
   if(btn)btn.textContent=camOK?'📷 关闭摄像头':'📷 开启摄像头';
   if(note){
     note.className='cam-note'+(camOK?' ok':'');
-    note.textContent=camOK?'已开启 ✓ 画面仅在本机模拟显示，不会上传，也不会真的开播。':'画面只在你的设备上模拟显示，不会上传，也不会真的开播。';
+    if(isCall()){
+      note.textContent=camOK?'已开启 ✓ 画面仅在本机模拟显示，不会上传，也不会真的连线。':'画面只在你的设备上模拟显示，不会上传，也不会真的连线。';
+    }else{
+      note.textContent=camOK?'已开启 ✓ 画面仅在本机模拟显示，不会上传，也不会真的开播。':'画面只在你的设备上模拟显示，不会上传，也不会真的开播。';
+    }
   }
 }
 function startCam(){
@@ -1478,20 +1605,29 @@ function confirmNick(){
 }
 function startGame(){
   paused=false;
+  const skipEl=$('skipIntro');
+  if(skipEl)skipIntroSel=!!skipEl.checked;
   S=newState(($('nick').value.trim())||'骚狗',modeSel);
-  S.audience=shuffle(DATA.nicknames).slice(0,R(8,12));
+  S.audience=isCall()?[hostLabel()]:shuffle(DATA.nicknames).slice(0,R(8,12));
   S.stages=buildSchedule().map(function(s){return makeStage(s.type,s.act);});
   S.si=0;
-  $('setup').hidden=true;
-  $('agegate').hidden=true;
-  if(!camOK)$('fallback').classList.add('on');
-  $('console').hidden=false;
-  $('topbar').hidden=false;
-  $('taskcard').hidden=false;
-  $('stats').hidden=false;
-  $('audience').hidden=false;
-  $('buttons').hidden=false;
-  $('safeStop').hidden=false;
+  setHidden('setup',true);
+  setHidden('agegate',true);
+  if(!camOK){const fb=$('fallback');if(fb)fb.classList.add('on');}
+  setHidden('console',false);
+  const cons=$('console');
+  if(cons)cons.classList.add('is-live');
+  setHidden('topbar',false);
+  setHidden('taskcard',false);
+  setHidden('stats',false);
+  setHidden('audience',false);
+  setHidden('buttons',false);
+  setHidden('safeStop',false);
+  if(isCall()){
+    setHidden('hostPip',false);
+    const face=$('hostPipFace');
+    if(face)face.textContent=(hostLabel()&&hostLabel()[0])||'主';
+  }
   fitTopbar();
   setTimeout(fitTopbar,250);
   sfx('start');
@@ -1499,7 +1635,10 @@ function startGame(){
   startCommentLoop();
   updateViewers();
   viewInt=setInterval(updateViewers,4000);
-  elapsedInt=setInterval(function(){$('elapsed').textContent=fmtTime(Date.now()-S.startedAt);},1000);
+  elapsedInt=setInterval(function(){
+    setText('elapsed',fmtTime(Date.now()-S.startedAt));
+    if(isCall())setText('callDuration',fmtTime(Date.now()-S.startedAt));
+  },1000);
   renderStage();
 }
 
@@ -1549,6 +1688,11 @@ function init(){
       modeSel=b.dataset.m;
     };
   });
+  const skipIntroEl=$('skipIntro');
+  if(skipIntroEl){
+    skipIntroSel=!!skipIntroEl.checked;
+    skipIntroEl.onchange=function(){skipIntroSel=!!skipIntroEl.checked;};
+  }
   $('camBtn').onclick=function(){if(camOK){stopCam();}else{startCam();}};
   $('settingsBtn').onclick=function(){initTTS();$('settingsModal').hidden=false;};
   $('settingsClose').onclick=function(){$('settingsModal').hidden=true;};
@@ -1588,7 +1732,7 @@ function init(){
   $('pauseBtn').onclick=pauseGame;
   $('pauseResume').onclick=resumeGame;
   $('pauseExit').onclick=exitToSetup;
-  $('pauseRestart').onclick=function(){if(confirm('确定重新开始吗？当前直播会直接结束。'))location.reload();};
+  $('pauseRestart').onclick=function(){if(confirm(isCall()?'确定重新拨入吗？当前通话会直接结束。':'确定重新开始吗？当前直播会直接结束。'))location.reload();};
   $('safeStop').onclick=function(){if(!S)return;$('safeConfirm').hidden=false;};
   $('safeYes').onclick=function(){safeStopFlow();};
   $('safeNo').onclick=function(){$('safeConfirm').hidden=true;};
@@ -1650,22 +1794,29 @@ function init(){
 window.TJGame = {
   init: init,
   applyBrand: function(site){
-    var brand = site.brandName || '调教室';
+    var brand = isCall()
+      ? (site.callBrandName || site.brandName || '私人通话')
+      : (site.brandName || '调教室');
     var host = site.hostName || '主人';
+    var caption = isCall()
+      ? (site.callFrameCaption || site.frameCaption || '私人视频通话')
+      : (site.frameCaption || brand);
     document.querySelectorAll('[data-brand]').forEach(function(el){el.textContent=brand;});
     document.querySelectorAll('[data-host]').forEach(function(el){el.textContent=host;});
     document.title = brand;
     var frame = document.getElementById('frame');
     if(frame){
-      // caption via CSS ::after — set CSS variable
-      document.documentElement.style.setProperty('--frame-caption', '"' + (site.frameCaption||brand) + '"');
+      document.documentElement.style.setProperty('--frame-caption', '"' + caption + '"');
     }
     CONFIG.hostName = host;
     if(window.TJ) TJ.hostName = host;
+    var face = document.getElementById('hostPipFace');
+    if(face) face.textContent = (host && host[0]) || '主';
   },
   setCallNames: function(arr){ if(arr&&arr.length) DATA.callNames = arr.slice(); },
   getMode: function(){ return modeSel; },
-  setMode: function(m){ modeSel = m; }
+  setMode: function(m){ modeSel = m; },
+  isCall: isCall
 };
 
 })();
