@@ -94,6 +94,11 @@ function kinkAllowed(task){
   if(!en)return true;
   return en.has(task.k);
 }
+function kinkOn(id){
+  var en=window.TJ&&TJ.enabledKinks;
+  if(!en)return true;
+  return en.has(id);
+}
 function preferBoost(pool){
   var pref=window.TJ&&TJ.preferKinks;
   if(!pref||!pref.size)return pool;
@@ -188,7 +193,10 @@ function buildTasks(type,act){
       if(act===1)return themedDraw('instruct',n,S.avoidKink,function(t){return !t.hi;});
       return themedDraw('instruct',n,S.avoidKink);
     }
-    case 'train': return drawPool('train',(hard?2:1)+(act===3?1:0));
+    case 'train': {
+      if(!kinkOn('体训'))return themedDraw('instruct',(hard?2:1)+(act===3?1:0),S.avoidKink);
+      return drawPool('train',(hard?2:1)+(act===3?1:0));
+    }
     case 'jerk': {
       const n=(act===3)?(hard?R(2,3):R(1,2)):(hard?R(1,2):1);
       const rounds=[];
@@ -232,16 +240,17 @@ function makeStage(type,act){
 function buildCallSchedule(){
   const hard=S.mode==='hard';
   const stages=[];
+  const trainAlt=kinkOn('体训')?'train':'instruct';
   if(!skipIntroSel)stages.push({type:'intro',act:0});
-  // 幕1 · 进状态：热身 → 轻指令 → 跟读 → 体训
+  // 幕1 · 进状态：热身 → 轻指令 → 跟读 → 体训（未启用则改指令）
   stages.push({type:'warmup',act:1});
   stages.push({type:'instruct',act:1});
   stages.push({type:'recite',act:1});
   if(hard)stages.push({type:'instruct',act:1});
-  stages.push({type:'train',act:1});
+  stages.push({type:trainAlt,act:1});
   // 幕2 · 加压：指令加深 → 体训 → 首次惩罚 → 可选撸管
   stages.push({type:'instruct',act:2});
-  stages.push({type:'train',act:2});
+  stages.push({type:trainAlt,act:2});
   stages.push({type:'instruct',act:2});
   if(hard)stages.push({type:'recite',act:2});
   stages.push({type:'punish',act:2});
@@ -252,7 +261,7 @@ function buildCallSchedule(){
   stages.push({type:'punish',act:3});
   if(hard)stages.push({type:'instruct',act:3});
   stages.push({type:'jerk',act:3});
-  if(window.TJ&&TJ.enabledKinks&&TJ.enabledKinks.has('假鸡巴')){
+  if(kinkOn('假鸡巴')){
     stages.push({type:'insert',act:3});
   }
   stages.push({type:'climax',act:4});
@@ -264,6 +273,7 @@ function buildSchedule(){
   const hard=S.mode==='hard';
   const stages=[];
   if(!skipIntroSel)stages.push({type:'intro',act:0});
+  const allowTrain=kinkOn('体训');
   function fill(n,act,pool){
     let chatSince=0,prev='';
     for(let i=0;i<n;i++){
@@ -279,16 +289,20 @@ function buildSchedule(){
       prev=t;
     }
   }
-  const p1=['instruct','instruct','recite','chat','train'];
+  const p1=['instruct','instruct','recite','chat'];
+  if(allowTrain)p1.push('train');
+  else p1.push('instruct');
   if(Math.random()<0.35)p1.push('order');
   fill(R(...CONFIG.ACT1[hard?'hard':'easy']),1,p1);
-  const p2=['instruct','instruct','train','train','punish','chat','order'];
+  const p2=['instruct','instruct','punish','chat','order'];
+  if(allowTrain){p2.push('train');p2.push('train');}
+  else{p2.push('instruct');p2.push('instruct');}
   if(Math.random()<0.5)p2.push('jerk');
   fill(R(...CONFIG.ACT2[hard?'hard':'easy']),2,p2);
   const p3=['instruct','instruct','punish','punish','order','order','jerk','jerk','chat'];
   fill(R(...CONFIG.ACT3[hard?'hard':'easy']),3,p3);
   if(!stages.some(s=>s.type==='jerk'))stages.splice(Math.floor(stages.length/2),0,{type:'jerk',act:2});
-  if(window.TJ&&TJ.enabledKinks&&TJ.enabledKinks.has('假鸡巴')){
+  if(kinkOn('假鸡巴')){
     stages.push({type:'insert',act:3});
     if(hard){
       const mid=Math.max(2,Math.floor(stages.length/2));
@@ -1384,7 +1398,7 @@ const EVENT_FX={
   '全场静默':function(){S.silentT=15000;addShame(3);},
   '观众点名':function(){insertTask('recite',1);},
   '连击加码':function(){S.buff=Math.min(3,S.buff+1);},
-  '加练一组':function(){insertTask('train',1);},
+  '加练一组':function(){insertTask(kinkOn('体训')?'train':'instruct',1);},
   '拍照时间':function(){addShame(3);S.stats.heat=clamp(S.stats.heat+2,0,100);},
   '不许出声':function(){addShame(2);},
   '弹幕稽查':function(){addShame(2);},
@@ -1400,7 +1414,7 @@ const EVENT_FX={
   '观众报复':function(){S.stats.heat=clamp(S.stats.heat-6,0,100);booComments();},
   '直播间爆火':function(){S.stats.heat=clamp(S.stats.heat+8,0,100);insertTask('order',1);},
   '观众要后庭':function(){
-    if(window.TJ&&TJ.enabledKinks&&TJ.enabledKinks.has('假鸡巴')){
+    if(kinkOn('假鸡巴')){
       const st=S.stages[S.si];
       const extra=drawPool('insert',1)[0]||drawPool('instruct',1,function(t){return t.k==='假鸡巴';})[0];
       if(extra)st.tasks.push(extra);
