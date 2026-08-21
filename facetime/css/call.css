@@ -209,6 +209,13 @@ body.facetime-mode #setup .card{
   color: rgba(184, 255, 200, 0.85);
   font-weight: 650;
 }
+body.facetime-mode .call-live-tip{
+  color: rgba(184, 255, 200, 0.9);
+  font-style: normal;
+  font-weight: 650;
+  margin-bottom: 8px;
+  opacity: 0.95;
+}
 .scenario-toy-actions {
   display: flex;
   gap: 8px;

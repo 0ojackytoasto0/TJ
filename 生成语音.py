@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-调教直播间 · 模块化语音包生成
+调教直播间 · 语音包生成
 
-默认只生成「模块短句」+ 开场/台词/后调等核心句，不再为每一条长指令出 MP3。
-前端：有整句 MP3 就播；没有则立刻用本地 TTS（见 js/game.js）。
+默认 full：保留大部分整句 MP3（指令/惩罚/台词等）。
+道具/地点等短名仍作为模块一并收录，方便「画面写细项、语音用通称」或单独点名道具。
+
+前端：index 里列出的哈希才播 MP3；具体道具名会先归一成 肛塞/假鸡巴/跳蛋… 再查哈希。
 
 用法：
   pip install -r requirements.txt
-  python 生成语音.py --dry                 # 统计（默认 modules）
-  python 生成语音.py                       # 生成模块包
-  python 生成语音.py --mode core            # 模块 + intro/aftercare/finale/jerk
-  python 生成语音.py --mode full            # 旧行为：全部任务池（很大）
+  python 生成语音.py --dry                 # 统计并刷新 manifest/index（默认 full）
+  python 生成语音.py                       # 生成缺的整句 + 模块
+  python 生成语音.py --mode modules         # 只要短句模块
+  python 生成语音.py --mode core           # 模块 + intro/aftercare/finale/jerk
   python 生成语音.py --voice yunyang
   python 生成语音.py --limit 20
 """
@@ -120,11 +122,10 @@ def collect_modules(host: str) -> dict[str, str]:
     seen: dict[str, str] = {}
     if os.path.isfile(MODULES):
         mod = load_json(MODULES)
-        for key in ("phrases", "toys", "locations", "stems"):
+        for key in ("phrases", "call", "toys", "locations", "stems"):
             for s in mod.get(key) or []:
                 if isinstance(s, str):
                     add_text(seen, s, host)
-        # 也收录 scenarios 里的玩具/地点标签
     if os.path.isfile(SCENARIOS):
         sc = load_json(SCENARIOS)
         for toy in sc.get("toys") or []:
@@ -209,11 +210,11 @@ def collect_jerk(host: str, seen: dict[str, str]):
 
 def collect(mode: str) -> dict[str, str]:
     host = default_host()
+    # 任何模式都带上道具/地点短名模块
     seen = collect_modules(host)
     collect_lines(host, seen)
 
     if mode == "modules":
-        # 只要模块 + 台词；开场规矩仍常用，收一点 intro
         collect_intro(host, seen)
         for name in ("aftercare", "finale"):
             collect_pool(name, host, seen)
@@ -226,12 +227,31 @@ def collect(mode: str) -> dict[str, str]:
             collect_pool(name, host, seen)
         return seen
 
-    # full
+    # full：大部分整句 + 模块
     for name in FULL_POOLS:
         collect_pool(name, host, seen)
     collect_intro(host, seen)
     collect_jerk(host, seen)
     return seen
+
+
+def existing_mp3_hashes() -> set[str]:
+    """前端 index 只列磁盘上真实存在的文件，避免空哈希导致整句不播。"""
+    hashes: set[str] = set()
+    for pack in VOICES:
+        folder = os.path.join(OUT, pack)
+        if not os.path.isdir(folder):
+            continue
+        for name in os.listdir(folder):
+            if not name.endswith(".mp3"):
+                continue
+            path = os.path.join(folder, name)
+            try:
+                if os.path.getsize(path) > 1000:
+                    hashes.add(name[:-4])
+            except OSError:
+                pass
+    return hashes
 
 
 async def gen_one(sem, text, voice, out):
@@ -289,14 +309,14 @@ async def generate(manifest: dict[str, str], pack: str, limit: int | None = None
 
 
 def main():
-    ap = argparse.ArgumentParser(description="模块化语音包生成")
-    ap.add_argument("--dry", action="store_true", help="只写 manifest，不生成")
+    ap = argparse.ArgumentParser(description="语音包生成（默认保留大部分整句）")
+    ap.add_argument("--dry", action="store_true", help="只写 manifest/index，不生成")
     ap.add_argument("--voice", default="both", choices=["yunyang", "yunxi", "both"])
     ap.add_argument(
         "--mode",
-        default="modules",
+        default="full",
         choices=["modules", "core", "full"],
-        help="modules=短句模块(默认) / core=常用池 / full=全部任务",
+        help="full=大部分整句+模块(默认) / core=常用池 / modules=仅短句模块",
     )
     ap.add_argument("--limit", type=int, default=None)
     args = ap.parse_args()
@@ -311,12 +331,28 @@ def main():
     with open(man_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=1)
 
-    # 哈希索引：前端用它判断「有没有整句 MP3」
-    index = {"mode": args.mode, "count": len(manifest), "hashes": sorted(set(manifest.values()))}
+    # index：以磁盘已有 MP3 为准（避免 modules 模式覆盖后前端以为只剩 200 条）
+    disk = existing_mp3_hashes()
+    man_hashes = set(manifest.values())
+    # 已有文件 + 本轮清单里尚未生成的不写入（避免假阳性 404）
+    # 已有文件即使不在本轮清单也保留，兼容旧录音
+    index_hashes = sorted(disk)
+    index = {
+        "mode": args.mode,
+        "manifestCount": len(manifest),
+        "count": len(index_hashes),
+        "hashes": index_hashes,
+        "note": "hashes=磁盘上已有 mp3；具体道具名由前端归一成通称后再查",
+    }
     with open(os.path.join(OUT, "index.json"), "w", encoding="utf-8") as f:
         json.dump(index, f, ensure_ascii=False, indent=1)
 
-    print(f"mode={args.mode} · 共 {len(manifest)} 条（已写入 tts/manifest.json + tts/index.json）")
+    overlap = len(disk & man_hashes)
+    print(
+        f"mode={args.mode} · 清单 {len(manifest)} 条 · 磁盘 MP3 哈希 {len(disk)} · 与清单重合 {overlap}",
+        flush=True,
+    )
+    print("已写入 tts/manifest.json + tts/index.json", flush=True)
     if args.dry:
         return
 
@@ -324,6 +360,19 @@ def main():
         asyncio.run(generate(manifest, "yunyang", args.limit))
     if args.voice in ("yunxi", "both"):
         asyncio.run(generate(manifest, "yunxi", args.limit))
+
+    # 生成后再扫一遍磁盘，刷新 index
+    disk = existing_mp3_hashes()
+    index = {
+        "mode": args.mode,
+        "manifestCount": len(manifest),
+        "count": len(disk),
+        "hashes": sorted(disk),
+        "note": "hashes=磁盘上已有 mp3；具体道具名由前端归一成通称后再查",
+    }
+    with open(os.path.join(OUT, "index.json"), "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, indent=1)
+    print(f"已刷新 index：{len(disk)} 条可用哈希", flush=True)
 
 
 if __name__ == "__main__":

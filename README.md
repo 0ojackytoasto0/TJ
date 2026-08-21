@@ -70,27 +70,26 @@ GitHub Pages 上对应 `https://<用户名>.github.io/<仓库名>/` 与 `.../fac
 
 若仓库名不是根站点，确认相对路径 `css/`、`js/`、`data/` 能打开（本项目使用相对路径，适合 project pages）。
 
-## 语音（模块化 MP3 + 本地回退）
+## 语音（整句 MP3 为主 + 道具通称）
 
-默认按 **模块化** 生成：只为短句模块、地点/玩具名、开场台词等出 MP3；长指令没有对应文件时**立刻用本地系统语音**，不必再为上千条任务逐条生成。
+默认 **full**：为大部分指令/台词生成整句男声 MP3。场景里具体道具（硅胶肛塞、假鸡巴中…）在**画面**显示细项，**语音**归一成「肛塞 / 假鸡巴 / 跳蛋…」去命中同一条录音——不必为每种道具重录整句。
+
+道具/地点短名仍收在 [`data/tts-modules.json`](data/tts-modules.json)，需要时也可单独生成短 clip。
 
 ### 生成语音包
 
 ```bash
 pip install -r requirements.txt
-python 生成语音.py --dry                    # 默认 modules：看有多少条
-python 生成语音.py --voice yunyang           # 生成模块包（推荐）
-python 生成语音.py --mode core --voice both  # 模块 + jerk/aftercare 等常用池
-python 生成语音.py --mode full --voice both  # 旧行为：全量任务（很大、很慢）
+python 生成语音.py --dry                    # 默认 full：刷新清单 + 按磁盘已有 MP3 写 index
+python 生成语音.py --voice yunyang           # 补生成缺的整句（推荐）
+python 生成语音.py --mode core --voice both  # 模块 + 常用池
+python 生成语音.py --mode modules            # 只要短句模块（道具名等）
 python 生成语音.py --limit 5                # 调试：先生成 5 条
 ```
 
-- 模块文案在 [`data/tts-modules.json`](data/tts-modules.json)，可自行加短句。
-- 输出：`tts/manifest.json`（文本→哈希）、`tts/index.json`（前端用来判断有没有 MP3）。
-- 哈希规则与前端 `ttsHash(normTTS(...))` 一致。
-- 改模块文案后重新跑脚本即可；场景随机长句一般走本地 TTS。
-
-未命中 MP3 时自动回退到 **本地系统语音**（不再空等 404）。
+- 输出：`tts/manifest.json`（文本→哈希）、`tts/index.json`（**磁盘上真实存在的**哈希，供前端选用）。
+- 哈希规则与前端 `ttsHash(normTTS(...))` 一致（含道具归一）。
+- 未命中 MP3 时回退到本地系统语音。
 
 ## 重新提取上游数据（可选）
 

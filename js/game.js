@@ -68,7 +68,9 @@ function newState(nick,mode){
     forced:false,log:[],buff:0,silentT:0,nextPunishX:1,
     finaleType:null,violated:false,stageIntro:false,avoidKink:null,avoidTurns:0,
     curAct:0,chainAudienceAngry:false,chainCombo:false,chainViral:false,_lastStats:null,
-    scenario:null
+    scenario:null,
+    memory:null,
+    callSpeakGen:0
   };
 }
 function saveGame(){
@@ -435,6 +437,141 @@ function reuseScenarioPool(poolKey,sc,act,n,extra){
 function makeScenarioStage(type,act,tasks){
   return {type:type,label:stageLabelOf(type),act:(act===undefined?2:act),tasks:tasks||[],idx:0};
 }
+
+/* ================= 一对一：真人感（记忆 / 通话口吻 / 现场加码） ================= */
+function ensureMemory(){
+  if(!S)return null;
+  if(!S.memory){
+    S.memory={
+      lastPart:null,lastKink:null,lastOutcome:null,
+      pose:null,inserted:false,plugIn:false,activeToy:null,
+      failStreakMem:0,doneStreak:0,lastSnippet:''
+    };
+  }
+  return S.memory;
+}
+function updateMemoryFromTask(task,outcome){
+  if(!isCall()||!S||!S.scenario||!task)return;
+  const m=ensureMemory();
+  m.lastOutcome=outcome;
+  m.lastKink=task.k||m.lastKink;
+  if(task.part)m.lastPart=task.part;
+  m.lastSnippet=String(task.t||'').slice(0,28);
+  const txt=task.t||'';
+  if(outcome==='done'){
+    m.doneStreak++;
+    m.failStreakMem=0;
+    if(isInsertishTask(task)||/插入|推进|塞进|抽插|坐下去/.test(txt))m.inserted=true;
+    if(/肛塞|塞子|塞住|塞进/.test(txt)||(task.needToyTags&&task.needToyTags.indexOf('plug')>=0))m.plugIn=true;
+    if(/跪|趴|躺|抱头/.test(txt))m.pose=/趴/.test(txt)?'prone':(/躺/.test(txt)?'lie':'kneel');
+    const toys=S.scenario.toys||[];
+    for(let i=0;i<toys.length;i++){
+      if(txt.indexOf(toys[i].label)>=0){m.activeToy=toys[i].label;break;}
+    }
+  }else{
+    m.failStreakMem++;
+    m.doneStreak=0;
+  }
+}
+function memoryReactLine(outcome){
+  if(!isCall()||!S||!S.scenario)return null;
+  const m=ensureMemory();
+  const toy=m.activeToy||'玩具';
+  if(outcome==='done'){
+    const pool=[];
+    if(m.plugIn)pool.push('塞子还在里面吧？别自己拔。','里面含着，继续听。');
+    if(m.inserted)pool.push('后面刚开过，别夹太紧。','扩张过了，待会还用得着。');
+    if(m.pose==='kneel')pool.push('跪姿保持，别偷懒坐下去。');
+    if(m.pose==='prone')pool.push('趴好的样子不错，记着。');
+    if(m.activeToy)pool.push(toy+'先放旁边，等下还要点名。',toy+'用得还可以。');
+    if(m.doneStreak>=2)pool.push('连续听话，主人满意。','嗯，这才像条听话的狗。');
+    if(m.lastPart==='cock')pool.push('前面先缓一缓，别自己偷偷撸。');
+    if(!pool.length)pool.push('做得还行。','乖。继续。','记下了。');
+    return pick(pool);
+  }
+  const bad=[];
+  if(m.failStreakMem>=2)bad.push('又不行？那换轻一点的。','两次做不到，换一条你听得懂的。');
+  if(m.plugIn)bad.push('做不到也别把塞子拔了。');
+  if(m.activeToy)bad.push(toy+'先放下，深呼吸。');
+  bad.push('做不到？先跪好缓十秒。','行，换简单的——但别以为结束了。','哼。那这条放宽一点。');
+  return pick(bad);
+}
+function sceneImprovLine(task){
+  if(!isCall()||!S||!S.scenario)return null;
+  const sc=S.scenario;
+  const m=ensureMemory();
+  const st=S.stages[S.si];
+  const act=st?st.act||1:1;
+  const pool=[];
+  // 地点
+  if(sc.id==='rental')pool.push('小声。合租房，别让门外听见喘。','门锁着吧？压低声音。');
+  if(sc.id==='uni_restroom')pool.push('隔间外有脚步就停手捂嘴。','公厕里？胆子不小，动作快点。');
+  if(sc.id==='uni_dorm')pool.push('窗帘拉好了吗。门反锁。','宿舍里就你？别太大动静。');
+  if(sc.id==='hotel')pool.push('酒店隔音一般，别叫太浪。','门链扣上了吗。');
+  if(sc.id==='home_bath')pool.push('地砖滑，跪稳。','浴室里回声大，注意音量。');
+  if(sc.id==='home')pool.push('家里就你？那今晚别装乖。');
+  // 玩具
+  const toys=sc.toys||[];
+  const has=function(tag){return toys.some(function(t){return (t.tags||[]).indexOf(tag)>=0;});};
+  if(has('plug')&&Math.random()<0.55)pool.push('铃铛或塞子在的话，待会要听响。','塞子今晚有出场。');
+  if(has('vibe')&&Math.random()<0.5)pool.push('跳蛋充好电了吗。','跳蛋待会用得上。');
+  if(has('dildo')&&Math.random()<0.55)pool.push('假鸡巴润滑准备好。','尺寸你自己清楚，别逞强。');
+  if(has('candle')&&Math.random()<0.4)pool.push('蜡烛小心烫，受不了就停。');
+  if(has('oral')&&Math.random()<0.4)pool.push('口罩那根，嘴也别闲着。');
+  // 记忆残留
+  if(m.plugIn)pool.push('塞着的话，走一步晃一下给我看。');
+  if(m.inserted&&act>=2)pool.push('后面已经湿过了，别装第一次。');
+  // 幕次
+  if(act>=3)pool.push('到后半场了，别散。','越来越深了，撑住。');
+  if(task&&task.hi)pool.push('这条偏狠，量力。痛了就安全挂断。');
+  if(!pool.length)return null;
+  // 约 65% 触发，避免每句都加码
+  if(Math.random()>0.65)return null;
+  return pick(pool);
+}
+function callCheckInLine(){
+  return pick(['听见了吗。','听清楚了吗。','看着镜头。','准备好了？','嗯，听着。']);
+}
+function callSpeakTask(task,extra){
+  if(!task||!S)return;
+  if(!S.callSpeakGen)S.callSpeakGen=0;
+  const gen=++S.callSpeakGen;
+  stopSpeak();
+  const papa=task.papa?P(task.papa):'';
+  const body=P(task.t||'');
+  const react=(extra&&extra.react)||null;
+  const improv=(extra&&extra.improv)||null;
+  const bits=[];
+  if(react)bits.push(react);
+  if(improv)bits.push(improv);
+  if(Math.random()<0.6)bits.push(callCheckInLine());
+  if(Math.random()<0.16)bits.push('不对——');
+  if(papa)bits.push(papa);
+  bits.push(body);
+  (async function(){
+    for(let i=0;i<bits.length;i++){
+      if(!S||S.callSpeakGen!==gen)return;
+      const line=bits[i];
+      if(line==='不对——'){
+        speak(line,{rate:1.08});
+        await sleep(R(420,620));
+        continue;
+      }
+      speak(line,{rate:i===bits.length-1?undefined:1.02});
+      // 按字数估停顿，减少电话口吻被下句打断
+      const gap=i===bits.length-1?0:Math.max(780,Math.min(4200,380+String(line).length*88))+R(0,280);
+      if(gap)await sleep(gap);
+    }
+  })();
+}
+function softRecoveryTask(sc){
+  const m=ensureMemory();
+  if(m.plugIn){
+    return bindToyText({t:'先别拔塞子。跪好，双手抱头，深呼吸十下。缓过来再说「主人，还能继续」。',k:'羞耻姿势',o:1,s:2,h:1},sc);
+  }
+  return bindToyText({t:'先停手。跪好，双手放膝盖上，深呼吸十次。缓过来抬头说「主人，狗还听令」。',k:'羞耻姿势',o:1,s:2,h:1},sc);
+}
+
 function buildScenarioSession(sc){
   const raw=scenarioData();
   const hard=S.mode==='hard';
@@ -681,15 +818,26 @@ function insertTask(poolKey,n){
 /* ================= 语音 ================= */
 let ttsVoice=null,ttsMuted=false,ttsPending=[],ttsRate=null,ttsPitch=null,sfxMuted=false;
 let ttsVoiceMale=false;
-const MALE_VOICE=/male|男|kangkang|yunjian|yunxi|yunyang|yunye|yunhao|sinji|sin-ji|daniel|eddy|arthur|george|liam|ryan|aaron|samuel|oliver|guy|male-enhanced/i;
-const FEMALE_VOICE=/female|女|huihui|yaoyao|xiaoxiao|xiaoyi|siqi|xiaohan|xiaomeng|tingting|ting-ting|ting ting|meijia|mei-jia|xiaochen|xiaomo|xiaoshuang|xiaozhen|xiaorui|xiaoxuan|lili|huiting|xiaoyu|anli|xiaobei|female-enhanced/i;
+const MALE_VOICE=/male|男|kangkang|yunjian|yunxi|yunyang|yunye|yunhao|yunfeng|yunxia|sinji|sin-ji|sin ji|daniel|eddy|arthur|george|liam|ryan|aaron|samuel|oliver|guy|male-enhanced|zh-cn-x-ccc|zh[-_]?cn[-_]?x[-_]?ccc|baidu[-_]?male|google[-_]?中文[-_]?男/i;
+const FEMALE_VOICE=/female|女|huihui|yaoyao|xiaoxiao|xiaoyi|siqi|xiaohan|xiaomeng|tingting|ting-ting|ting ting|ting-ting|meijia|mei-jia|xiaochen|xiaomo|xiaoshuang|xiaozhen|xiaorui|xiaoxuan|lili|huiting|xiaoyu|anli|xiaobei|female-enhanced|siri.*female/i;
 function pickDomVoice(list){
   if(!list||!list.length)return null;
-  const male=list.filter(v=>MALE_VOICE.test(v.name));
+  // 先按名字里的男声关键词
+  const male=list.filter(v=>MALE_VOICE.test(v.name)||MALE_VOICE.test(v.lang||''));
   if(male.length)return male[0];
+  // 再排除明确女声
   const notFemale=list.filter(v=>!FEMALE_VOICE.test(v.name));
   if(notFemale.length)return notFemale[0];
+  // iPhone 往往只剩婷婷：仍返回，但后续用低音调压一压
   return list[0];
+}
+function localVoiceParams(opts){
+  opts=opts||{};
+  const hasMale=ttsVoice&&MALE_VOICE.test(ttsVoice.name);
+  // 无系统男声时（常见于 iPhone），压低 pitch / 略降语速，减少「女主人」感
+  const rate=opts.rate!=null?opts.rate:(ttsRate!=null?ttsRate:(hasMale?0.92:0.86));
+  const pitch=opts.pitch!=null?opts.pitch:(ttsPitch!=null?ttsPitch:(hasMale?0.62:0.48));
+  return {rate:rate,pitch:pitch,forcedLow:!hasMale};
 }
 function buildVoiceList(vs){
   const box=$('voiceList');
@@ -731,7 +879,7 @@ function updateVoiceHint(vs){
     h.textContent='未检测到中文语音。建议用 Chrome / Edge 浏览器打开，或在系统设置里安装中文语音包。';
   }else if(!male){
     h.className='voice-hint warn';
-    h.textContent='当前设备共 '+vs.length+' 个中文语音，没有男声。建议：① 用 Chrome / Edge 打开（Edge 自带云希等男声）；② 在手机系统设置中安装中文男声语音包；③ 网络环境下可托管到 GitHub Pages 后搭配远程音色。';
+    h.textContent='系统里没有中文男声（iPhone 常见，只有婷婷）。场景长句会走本地朗读，已自动压低音调。想听真男声：通话设置里保持「云扬」包，并运行 python 生成语音.py 生成模块 MP3；或换装了中文男声的 Android / 桌面 Chrome。';
   }else{
     h.className='voice-hint ok';
     h.textContent='共 '+vs.length+' 个中文语音，其中男声 '+male+' 个。点一个试听，选中的就是主人口吻。';
@@ -775,7 +923,8 @@ if('speechSynthesis' in window){
 /* ===== MP3 语音包（预生成男声）===== */
 let ttsPack='yunyang';
 const TTS_PACKS={yunyang:'云扬 · 男声包（默认）',yunxi:'云希 · 男声包',local:'本地语音'};
-const TTS_CDN='';
+/** facetime 在 boot 里设 window.TTS_CDN='../'；直播间为空 */
+function ttsCdn(){return (window.TTS_CDN!=null&&window.TTS_CDN!=='')?String(window.TTS_CDN):'';}
 let ttsAudio=null,ttsPre=null,ttsGen=0,ttsStartTimer=null,ttsBurstEnd=0,ttsQueue=[];
 /** 模块化：manifest/index 里有的哈希才播 MP3，否则立刻本地朗读 */
 let ttsHashSet=null,ttsIndexLoading=null;
@@ -784,9 +933,42 @@ function ttsHash(txt){
   for(let i=0;i<txt.length;i++){h=((h<<5)+h+txt.charCodeAt(i))>>>0;}
   return h.toString(16);
 }
+/** 具体道具名 → 录音用的通称，整句 MP3 仍命中；画面可继续显示细项 */
+function toyCanonWord(toy){
+  const tags=(toy&&toy.tags)||[];
+  if(tags.indexOf('plug')>=0)return '肛塞';
+  if(tags.indexOf('dildo')>=0)return '假鸡巴';
+  if(tags.indexOf('vibe')>=0)return '跳蛋';
+  if(tags.indexOf('candle')>=0)return '蜡烛';
+  if(tags.indexOf('stroker')>=0)return '自慰棒';
+  return '玩具';
+}
+function canonToyLabels(s){
+  let out=String(s||'');
+  const pairs=[];
+  scenarioToyCatalog().forEach(function(t){
+    if(t&&t.label)pairs.push({from:t.label,to:toyCanonWord(t)});
+  });
+  // 模块包/旧文案里可能出现的别名
+  [
+    ['硅胶肛塞','肛塞'],['铃铛肛塞','肛塞'],['普通肛塞','肛塞'],
+    ['假鸡巴小','假鸡巴'],['假鸡巴中','假鸡巴'],['假鸡巴大','假鸡巴'],
+    ['假鸡巴（小）','假鸡巴'],['假鸡巴（中）','假鸡巴'],['假鸡巴（大）','假鸡巴'],
+    ['假鸡巴（可插入）','假鸡巴'],['口罩假鸡巴','假鸡巴'],
+    ['跳蛋（1）','跳蛋'],['跳蛋（n）','跳蛋'],['跳蛋1','跳蛋'],['跳蛋n','跳蛋']
+  ].forEach(function(p){pairs.push({from:p[0],to:p[1]});});
+  pairs.sort(function(a,b){return b.from.length-a.from.length;});
+  const seen={};
+  pairs.forEach(function(p){
+    if(!p.from||seen[p.from])return;
+    seen[p.from]=1;
+    if(out.indexOf(p.from)>=0)out=out.split(p.from).join(p.to);
+  });
+  return out;
+}
 function normTTS(txt){
   var host=(window.TJ&&TJ.hostName)||(CONFIG&&CONFIG.hostName)||'主人';
-  return fixTTS(String(txt)
+  return fixTTS(canonToyLabels(String(txt)
     .replace(/\{n\}/g,'骚狗')
     .replace(/\{c\}/g,'骚狗')
     .replace(/\{host\}/g,host)
@@ -796,15 +978,15 @@ function normTTS(txt){
     .replace(/\{vibe\}/g,'跳蛋')
     .replace(/\{candle\}/g,'蜡烛')
     .replace(/\{stroker\}/g,'自慰棒')
-    .replace(/\s+/g,' '));
+    .replace(/\s+/g,' ')));
 }
 function ttsUrl(txt){
-  return (TTS_CDN||'')+'tts/'+ttsPack+'/'+ttsHash(normTTS(txt))+'.mp3';
+  return ttsCdn()+'tts/'+ttsPack+'/'+ttsHash(normTTS(txt))+'.mp3';
 }
 function ensureTtsIndex(){
   if(ttsHashSet)return Promise.resolve(ttsHashSet);
   if(ttsIndexLoading)return ttsIndexLoading;
-  ttsIndexLoading=fetch((TTS_CDN||'')+'tts/index.json',{cache:'no-cache'})
+  ttsIndexLoading=fetch(ttsCdn()+'tts/index.json',{cache:'no-cache'})
     .then(function(r){return r.ok?r.json():null;})
     .then(function(idx){
       ttsHashSet=new Set();
@@ -812,7 +994,7 @@ function ensureTtsIndex(){
         idx.hashes.forEach(function(h){ttsHashSet.add(h);});
       }else{
         // 兼容旧仓库：尝试 manifest
-        return fetch((TTS_CDN||'')+'tts/manifest.json',{cache:'no-cache'})
+        return fetch(ttsCdn()+'tts/manifest.json',{cache:'no-cache'})
           .then(function(r){return r.ok?r.json():{};})
           .then(function(man){
             Object.keys(man||{}).forEach(function(k){ttsHashSet.add(man[k]);});
@@ -848,7 +1030,7 @@ function preloadTts(txt){
     try{
       if(!ttsPre)ttsPre=new Audio();
       ttsPre.preload='auto';
-      ttsPre.src=(TTS_CDN||'')+'tts/'+ttsPack+'/'+ttsHash(finalText)+'.mp3';
+      ttsPre.src=ttsCdn()+'tts/'+ttsPack+'/'+ttsHash(finalText)+'.mp3';
     }catch(e){}
   });
 }
@@ -936,8 +1118,9 @@ function sayLocal(txt,opts){
   const u=new SpeechSynthesisUtterance(String(txt).replace(/\s+/g,' '));
   u.lang='zh-CN';
   if(ttsVoice)u.voice=ttsVoice;
-  u.rate=opts.rate||ttsRate||(ttsVoiceMale?0.92:0.88);
-  u.pitch=opts.pitch||ttsPitch||(ttsVoiceMale?0.62:0.5);
+  const vp=localVoiceParams(opts);
+  u.rate=vp.rate;
+  u.pitch=vp.pitch;
   u.volume=1;
   u.onstart=micOnStart;
   u.onend=function(){micOnEnd();drainQueued();};
@@ -1319,7 +1502,20 @@ function renderTask(task){
   }
   setHidden('countdown',true);
   if(task.papa)setMsgLine('<b>'+esc(hostLabel())+'：</b>'+esc(P(task.papa)),false,6);
-  speak((task.papa?task.papa+' ':'')+task.t);
+  if(isCall()&&S.scenario){
+    const reactHint=S.memory&&S.memory.lastOutcome?memoryReactLine(S.memory.lastOutcome):null;
+    const improv=sceneImprovLine(task);
+    if(S.memory)S.memory.lastOutcome=null;
+    if(reactHint||improv){
+      const tips=[];
+      if(reactHint)tips.push(esc(reactHint));
+      if(improv)tips.push(esc(improv));
+      setHtml('tasktext','<div class="follow call-live-tip">'+tips.join(' · ')+'</div>'+esc(P(task.t))+(task.follow?'<div class="follow">追问：'+esc(P(task.follow))+'</div>':''));
+    }
+    callSpeakTask(task,{react:reactHint,improv:improv});
+  }else{
+    speak((task.papa?task.papa+' ':'')+task.t);
+  }
   sfx('task');
 }
 
@@ -1570,6 +1766,7 @@ function endJerk(){
   $('btnA').disabled=false;$('btnA').classList.remove('dim');
   applyTask({o:3,s:7,h:6,st:-10});
   S.failStreak=0;S.combo++;S.done++;
+  if(isCall()&&S.scenario)updateMemoryFromTask({t:'撸管',k:'边缘',part:'cock'},'done');
   sfx('cheer');dirtyBurst();endComments();
   afterAction();
 }
@@ -1605,12 +1802,14 @@ function chooseA(){
     applyTask(task);
     S.finaleType=task.type;
     S.failStreak=0;S.combo++;S.done++;
+    updateMemoryFromTask(task,'done');
     sfx('done');cheerComments();endComments();
     afterAction();
     return;
   }
   applyTask(task);
   S.failStreak=0;S.combo++;S.done++;
+  updateMemoryFromTask(task,'done');
   sfx('done');cheerComments();
   afterAction();
 }
@@ -1674,6 +1873,7 @@ function answerDone(){
   if(!task)return;
   applyTask(task);
   S.failStreak=0;S.combo++;S.done++;
+  updateMemoryFromTask(task,'done');
   sfx('done');cheerComments();
   afterAction();
 }
@@ -1721,6 +1921,22 @@ function failHard(){
   }
   sfx('fail');booComments();dirtyBurst();
   if(S.failTotal>=CONFIG.FAIL_SHUTDOWN){startShutdown();return;}
+
+  // 一对一场景：记忆跟进 + 软恢复，不拆剧本
+  if(isCall()&&S.scenario){
+    updateMemoryFromTask(tk,'fail');
+    const react=memoryReactLine('fail');
+    papaToast(react||'做不到？换轻一点的。',3.2);
+    const soft=softRecoveryTask(S.scenario);
+    // 把当前任务换成恢复指令，再插一条稍轻的后续
+    st.tasks[st.idx]=soft;
+    const light=pickScenarioBeat('body',S.scenario,Math.max(1,(st.act||2)-1),null,{},false)
+      ||pickScenarioBeat('place_task',S.scenario,1,null,{},false);
+    if(light)st.tasks.splice(st.idx+1,0,bindToyText(light,S.scenario));
+    saveGame();renderStats();renderStage();
+    return;
+  }
+
   if(S.failStreak>=2){
     const prev=S.si>0?S.si-1:0;
     S.si=prev;
@@ -2154,6 +2370,8 @@ function startGame(){
   S.audience=isCall()?[hostLabel()]:shuffle(DATA.nicknames).slice(0,R(8,12));
   if(isCall()&&scenarioData()){
     S.scenario=resolveScenario();
+    S.memory=null;
+    ensureMemory();
     S.stages=buildScenarioSession(S.scenario);
   }else{
     S.stages=buildSchedule().map(function(s){return makeStage(s.type,s.act);});
