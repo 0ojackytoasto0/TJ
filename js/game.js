@@ -296,6 +296,10 @@ function scenarioHasBellPlug(sc){
     return t.id==='plug_bell'||(t.label&&t.label.indexOf('铃铛')>=0);
   });
 }
+function scenarioHasToyTag(sc,tag){
+  if(!sc||!sc.toys||!sc.toys.length)return false;
+  return sc.toys.some(function(t){return (t.tags||[]).indexOf(tag)>=0;});
+}
 function withStayPlugNote(task){
   if(!S||!S.stayPluggedForeplay||!task)return task;
   const t=Object.assign({},task);
