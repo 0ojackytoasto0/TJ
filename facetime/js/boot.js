@@ -6,7 +6,9 @@ import {
   buildOverridesFromUI,
   applyOverridesToUI,
   enabledKinkSet,
-  exportConfigBlob
+  exportConfigBlob,
+  scenarioPrefsFromOverrides,
+  renderScenarioUI
 } from '../../js/config.js';
 
 const STORAGE_KEY = 'tj_facetime_cfg_v1';
@@ -30,6 +32,7 @@ function syncRuntime(bundle, overrides) {
   TJ.hostName = host;
   TJ.enabledKinks = enabledKinkSet(bundle.kinks, overrides);
   TJ.preferKinks = new Set();
+  TJ.scenarioPrefs = scenarioPrefsFromOverrides(overrides);
   if (window.CONFIG) {
     CONFIG.hostName = host;
     CONFIG.brandName = bundle.site.callBrandName || bundle.site.brandName;
@@ -52,21 +55,27 @@ function syncRuntime(bundle, overrides) {
 function wireConfigUI(bundle) {
   const key = bundle.storageKey;
   let overrides = loadLocalOverrides(key) || {};
+  const scenarios = bundle.DATA.scenarios;
 
   bundle.site.callNames = bundle.DATA.callNames;
-  applyOverridesToUI(bundle.site, bundle.kinks, overrides);
+  applyOverridesToUI(bundle.site, bundle.kinks, overrides, scenarios);
   syncRuntime(bundle, overrides);
 
   const persist = () => {
     overrides = buildOverridesFromUI(bundle.kinks);
     saveLocalOverrides(key, overrides);
     syncRuntime(bundle, overrides);
+    if (scenarios) renderScenarioUI(scenarios, overrides, bundle.kinks);
   };
 
   document.getElementById('hostNameIn')?.addEventListener('change', persist);
   document.getElementById('callNamesIn')?.addEventListener('change', persist);
   document.getElementById('kinkGrid')?.addEventListener('change', persist);
   document.getElementById('featuredKinks')?.addEventListener('change', persist);
+  document.getElementById('scenarioLocGrid')?.addEventListener('change', persist);
+  document.getElementById('scenarioCondGrid')?.addEventListener('change', persist);
+  document.getElementById('scenarioToyGrid')?.addEventListener('change', persist);
+  document.getElementById('scenarioRandomAll')?.addEventListener('change', persist);
 
   document.getElementById('cfgExport')?.addEventListener('click', () => {
     persist();
@@ -89,7 +98,7 @@ function wireConfigUI(bundle) {
       const text = await file.text();
       overrides = JSON.parse(text);
       saveLocalOverrides(key, overrides);
-      applyOverridesToUI(bundle.site, bundle.kinks, overrides);
+      applyOverridesToUI(bundle.site, bundle.kinks, overrides, scenarios);
       syncRuntime(bundle, overrides);
       alert('配置已导入');
     } catch (err) {
@@ -133,7 +142,8 @@ async function main() {
     mode: 'facetime',
     hostName: bundle.site.hostName || '主人',
     enabledKinks: new Set(),
-    preferKinks: new Set()
+    preferKinks: new Set(),
+    scenarioPrefs: { location: 'random', conditions: {}, randomConditions: false }
   };
 
   await loadScript('../js/game.js');

@@ -190,7 +190,7 @@
       </span>
       <span class="prism-checkbox__content">
         <span class="prism-checkbox__label">跳过接通引导</span>
-        <span class="prism-checkbox__description">直接进入正式环节，不影响得分</span>
+        <span class="prism-checkbox__description">跳过规矩说明，仍保留场景就位；不影响得分</span>
       </span>
     </label>
     <div class="setwrap" id="setwrap">
@@ -206,6 +206,33 @@
 <input id="hostNameIn" type="text" maxlength="24" placeholder="主人" />
 <label>称呼池（逗号分隔）</label>
 <textarea id="callNamesIn" placeholder="骚狗,废狗,..."></textarea>
+
+<div class="scenario-setup" id="scenarioSetup">
+  <label>场景地点</label>
+  <div id="scenarioLocGrid" class="scenario-grid"></div>
+  <label>场景条件</label>
+  <label class="prism-checkbox" id="scenarioRandomWrap" style="margin:8px 0 10px">
+    <input type="checkbox" id="scenarioRandomAll" class="prism-checkbox__input" aria-label="条件也全部随机">
+    <span class="prism-checkbox__box" aria-hidden="true">
+      <span class="prism-checkbox__grid"></span>
+      <span class="prism-checkbox__glow"></span>
+      <svg class="prism-checkbox__check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 12.5L9.5 17L19 7.5"></path></svg>
+    </span>
+    <span class="prism-checkbox__content">
+      <span class="prism-checkbox__label">条件全部随机</span>
+      <span class="prism-checkbox__description">接通时随机组合插入 / 玩具 / 湿玩等（仍受癖好开关限制）</span>
+    </span>
+  </label>
+  <div id="scenarioCondGrid" class="scenario-grid"></div>
+  <label>今晚可用玩具（勾选你手头有的）</label>
+  <div class="scenario-toy-actions">
+    <button type="button" class="act mid scenario-toy-btn" id="toySelectAll">全选</button>
+    <button type="button" class="act mid scenario-toy-btn" id="toySelectNone">清空</button>
+  </div>
+  <div id="scenarioToyGrid" class="scenario-grid scenario-toy-grid"></div>
+  <div id="scenarioPreview" class="scenario-preview">将生成：随机地点</div>
+</div>
+
 <div id="featuredKinks"></div>
 <label>启用癖好（关闭后不会抽到）</label>
 <div id="kinkGrid" class="kink-grid"></div>

@@ -8,7 +8,7 @@
 - **配置导入导出**（保存在浏览器 `localStorage`）
 - 额外癖好包：**夹子 / 马桶 / 饮尿 / 身体涂写**
 - **可选加强：后庭插入（假鸡巴 / 肛塞）** — 开启后增加专场环节，并在其他环节混入相关任务
-- **一对一视频通话模式**（[`facetime/`](facetime/)）— 同一套任务引擎，呈现为与主人的私人通话（无观众弹幕）
+- **一对一视频通话模式**（[`facetime/`](facetime/)）— 接通前可选地点与条件，生成有始有终的场景剧本指令流（无观众弹幕）
 
 > 仅供 18+ 自愿私密使用。摄像头画面只在本机预览，不会上传。
 
@@ -25,11 +25,11 @@ npx --yes serve .
 | 路径 | 模式 |
 |------|------|
 | `/` | 多人直播间（LIVE、弹幕、观众点菜） |
-| `/facetime/` | 一对一视频通话：通话中、主人 PiP；无弹幕/问答；行程按强度阶梯推进 |
+| `/facetime/` | 一对一视频通话：选地点/条件（或随机）→ 场景剧本推进；主人 PiP；无弹幕/问答 |
 
 GitHub Pages 上对应 `https://<用户名>.github.io/<仓库名>/` 与 `.../facetime/`。
 
-**当前：无密码**（`passwordHash` 为空，直接进 18+ 确认页）。
+**当前：访问密码为 `1`**（`passwordHash` 已写入 SHA-256）。
 
 ## 设置 / 关闭密码
 
@@ -50,6 +50,7 @@ GitHub Pages 上对应 `https://<用户名>.github.io/<仓库名>/` 与 `.../fac
 |------|------|
 | [`data/site.json`](data/site.json) | 品牌名、主人称呼、密码哈希、难度/节奏参数；`callBrandName` / `callFrameCaption` 供 facetime 页展示 |
 | [`data/kinks.json`](data/kinks.json) | 癖好目录与默认开关 |
+| [`data/scenarios.json`](data/scenarios.json) | 一对一场景：地点、条件、节拍模板与 easy/hard 剧本弧 |
 | [`data/tasks/*.json`](data/tasks/) | 任务池、弹幕、台词 |
 | [`facetime/`](facetime/) | 一对一通话入口（独立 `localStorage` 键 `tj_facetime_cfg_v1`，复用上级 `data/` 与 `tts/`） |
 
@@ -69,27 +70,27 @@ GitHub Pages 上对应 `https://<用户名>.github.io/<仓库名>/` 与 `.../fac
 
 若仓库名不是根站点，确认相对路径 `css/`、`js/`、`data/` 能打开（本项目使用相对路径，适合 project pages）。
 
-## 语音（MP3 包 · iPhone 友好）
+## 语音（模块化 MP3 + 本地回退）
 
-默认音色包为 **云扬（MP3）**，与原库一样用 `Audio` 播放，在 iPhone 上比系统朗读稳。
+默认按 **模块化** 生成：只为短句模块、地点/玩具名、开场台词等出 MP3；长指令没有对应文件时**立刻用本地系统语音**，不必再为上千条任务逐条生成。
 
 ### 生成语音包
 
 ```bash
 pip install -r requirements.txt
-python 生成语音.py --dry              # 查看有多少条文本
-python 生成语音.py --voice yunyang    # 生成云扬（推荐先跑这个）
-python 生成语音.py --voice both       # 云扬 + 云希
-python 生成语音.py --limit 5          # 调试：每包先生成 5 条
+python 生成语音.py --dry                    # 默认 modules：看有多少条
+python 生成语音.py --voice yunyang           # 生成模块包（推荐）
+python 生成语音.py --mode core --voice both  # 模块 + jerk/aftercare 等常用池
+python 生成语音.py --mode full --voice both  # 旧行为：全量任务（很大、很慢）
+python 生成语音.py --limit 5                # 调试：先生成 5 条
 ```
 
-- 脚本从 [`data/tasks/`](data/tasks/) 收集任务与台词，输出到 [`tts/yunyang/`](tts/) 等。
+- 模块文案在 [`data/tts-modules.json`](data/tts-modules.json)，可自行加短句。
+- 输出：`tts/manifest.json`（文本→哈希）、`tts/index.json`（前端用来判断有没有 MP3）。
 - 哈希规则与前端 `ttsHash(normTTS(...))` 一致。
-- 改任务文案后需**重新运行**脚本，才会有对应 mp3。
-- 生成中的网络请求走 Edge TTS，需能访问外网；全量可能要较久。
-- 生成完成后把整个 `tts/` 目录一并部署到 GitHub Pages。
+- 改模块文案后重新跑脚本即可；场景随机长句一般走本地 TTS。
 
-未找到 mp3 时会自动回退到 **本地系统语音**。
+未命中 MP3 时自动回退到 **本地系统语音**（不再空等 404）。
 
 ## 重新提取上游数据（可选）
 

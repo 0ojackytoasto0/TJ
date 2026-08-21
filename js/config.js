@@ -29,6 +29,16 @@ export function clearLocalOverrides(storageKey) {
   localStorage.removeItem(storageKey);
 }
 
+function kinkNeedsMet(needs, enabledMap, kinksCatalog) {
+  if (!needs) return true;
+  const list = Array.isArray(needs) ? needs : [needs];
+  return list.some((id) => {
+    if (enabledMap[id] !== undefined) return !!enabledMap[id];
+    const k = (kinksCatalog || []).find((x) => x.id === id);
+    return k ? k.enabled !== false : true;
+  });
+}
+
 export function buildOverridesFromUI(kinksCatalog) {
   const hostName = (document.getElementById('hostNameIn')?.value || '').trim();
   const callRaw = document.getElementById('callNamesIn')?.value || '';
@@ -37,14 +47,170 @@ export function buildOverridesFromUI(kinksCatalog) {
   document.querySelectorAll('#kinkGrid input[type=checkbox], #featuredKinks input[type=checkbox]').forEach((cb) => {
     enabled[cb.dataset.kink] = cb.checked;
   });
+
+  const locEl = document.querySelector('input[name="scenarioLoc"]:checked');
+  const location = locEl ? locEl.value : 'random';
+  const randomConditions = !!document.getElementById('scenarioRandomAll')?.checked;
+  const conditions = {};
+  document.querySelectorAll('#scenarioCondGrid input[type=checkbox][data-cond]').forEach((cb) => {
+    conditions[cb.dataset.cond] = cb.checked;
+  });
+  const toys = {};
+  document.querySelectorAll('#scenarioToyGrid input[type=checkbox][data-toy]').forEach((cb) => {
+    toys[cb.dataset.toy] = cb.checked;
+  });
+
   return {
     hostName: hostName || undefined,
     callNames: callNames.length ? callNames : undefined,
-    enabledKinks: enabled
+    enabledKinks: enabled,
+    scenarioLocation: location,
+    scenarioConditions: conditions,
+    scenarioRandomConditions: randomConditions,
+    scenarioToys: toys
   };
 }
 
-export function applyOverridesToUI(site, kinks, overrides) {
+export function scenarioPrefsFromOverrides(overrides) {
+  return {
+    location: (overrides && overrides.scenarioLocation) || 'random',
+    conditions: (overrides && overrides.scenarioConditions) || {},
+    randomConditions: !!(overrides && overrides.scenarioRandomConditions),
+    toys: (overrides && overrides.scenarioToys) || {}
+  };
+}
+
+export function updateScenarioPreview(scenarios) {
+  const el = document.getElementById('scenarioPreview');
+  if (!el || !scenarios) return;
+  const locEl = document.querySelector('input[name="scenarioLoc"]:checked');
+  const locId = locEl ? locEl.value : 'random';
+  const loc =
+    locId === 'random'
+      ? null
+      : (scenarios.locations || []).find((l) => l.id === locId);
+  const locLabel = loc ? loc.label : '随机地点';
+  const randomAll = !!document.getElementById('scenarioRandomAll')?.checked;
+  const toyCount = [
+    ...document.querySelectorAll('#scenarioToyGrid input[type=checkbox][data-toy]:checked')
+  ].length;
+  const toyBit = toyCount ? toyCount + '件玩具' : '无玩具';
+  if (randomAll) {
+    el.textContent =
+      (locId === 'random'
+        ? '将生成：全部随机（地点 + 条件）'
+        : '将生成：' + locLabel + ' · 条件随机') +
+      ' · ' +
+      toyBit;
+    return;
+  }
+  const bits = [];
+  document.querySelectorAll('#scenarioCondGrid input[type=checkbox][data-cond]').forEach((cb) => {
+    if (cb.checked && !cb.disabled) bits.push(cb.dataset.label || cb.dataset.cond);
+  });
+  el.textContent =
+    '将生成：' +
+    locLabel +
+    (bits.length ? ' · ' + bits.join(' / ') : ' · 基础指令') +
+    ' · ' +
+    toyBit;
+}
+
+export function renderScenarioUI(scenarios, overrides, kinksCatalog) {
+  const locRoot = document.getElementById('scenarioLocGrid');
+  const condRoot = document.getElementById('scenarioCondGrid');
+  const toyRoot = document.getElementById('scenarioToyGrid');
+  if (!locRoot || !condRoot || !scenarios) return;
+
+  const o = overrides || {};
+  const enabledMap = o.enabledKinks || {};
+  const savedLoc = o.scenarioLocation || 'random';
+  const savedCond = o.scenarioConditions || {};
+  const savedToys = o.scenarioToys || {};
+  const randomAll = !!o.scenarioRandomConditions;
+
+  locRoot.innerHTML = '';
+  const mkLoc = (id, label) => {
+    const lab = document.createElement('label');
+    lab.className = 'scenario-chip' + (savedLoc === id ? ' on' : '');
+    lab.innerHTML = `<input type="radio" name="scenarioLoc" value="${id}" ${savedLoc === id ? 'checked' : ''}/><span>${label}</span>`;
+    const inp = lab.querySelector('input');
+    inp.addEventListener('change', () => {
+      locRoot.querySelectorAll('.scenario-chip').forEach((c) => c.classList.remove('on'));
+      lab.classList.add('on');
+      updateScenarioPreview(scenarios);
+    });
+    locRoot.appendChild(lab);
+  };
+  mkLoc('random', '随机');
+  (scenarios.locations || []).forEach((l) => mkLoc(l.id, l.label));
+
+  condRoot.innerHTML = '';
+  (scenarios.conditions || []).forEach((c) => {
+    const kinkOk = kinkNeedsMet(c.needsKink, enabledMap, kinksCatalog);
+    const on = savedCond[c.id] !== undefined ? !!savedCond[c.id] : !!c.default;
+    const lab = document.createElement('label');
+    lab.className = 'scenario-chip' + (on && kinkOk ? ' on' : '') + (!kinkOk ? ' dim' : '');
+    lab.innerHTML = `<input type="checkbox" data-cond="${c.id}" data-label="${c.label}" ${on && kinkOk ? 'checked' : ''} ${!kinkOk ? 'disabled' : ''}/><span>${c.label}${!kinkOk ? '（需开癖好）' : ''}</span>`;
+    const cb = lab.querySelector('input');
+    cb.addEventListener('change', () => {
+      lab.classList.toggle('on', cb.checked);
+      updateScenarioPreview(scenarios);
+    });
+    condRoot.appendChild(lab);
+  });
+
+  if (toyRoot) {
+    toyRoot.innerHTML = '';
+    (scenarios.toys || []).forEach((toy) => {
+      // default: none selected until user picks (first visit); if key exists use saved
+      const on = savedToys[toy.id] !== undefined ? !!savedToys[toy.id] : false;
+      const lab = document.createElement('label');
+      lab.className = 'scenario-chip' + (on ? ' on' : '');
+      lab.innerHTML = `<input type="checkbox" data-toy="${toy.id}" data-label="${toy.label}" ${on ? 'checked' : ''}/><span>${toy.label}</span>`;
+      const cb = lab.querySelector('input');
+      cb.addEventListener('change', () => {
+        lab.classList.toggle('on', cb.checked);
+        updateScenarioPreview(scenarios);
+      });
+      toyRoot.appendChild(lab);
+    });
+    const allBtn = document.getElementById('toySelectAll');
+    const noneBtn = document.getElementById('toySelectNone');
+    if (allBtn) {
+      allBtn.onclick = () => {
+        toyRoot.querySelectorAll('input[data-toy]').forEach((cb) => {
+          cb.checked = true;
+          cb.closest('.scenario-chip')?.classList.add('on');
+        });
+        updateScenarioPreview(scenarios);
+      };
+    }
+    if (noneBtn) {
+      noneBtn.onclick = () => {
+        toyRoot.querySelectorAll('input[data-toy]').forEach((cb) => {
+          cb.checked = false;
+          cb.closest('.scenario-chip')?.classList.remove('on');
+        });
+        updateScenarioPreview(scenarios);
+      };
+    }
+  }
+
+  const randEl = document.getElementById('scenarioRandomAll');
+  if (randEl) {
+    randEl.checked = randomAll;
+    const syncDim = () => {
+      condRoot.classList.toggle('is-random', randEl.checked);
+      updateScenarioPreview(scenarios);
+    };
+    randEl.onchange = syncDim;
+    syncDim();
+  }
+  updateScenarioPreview(scenarios);
+}
+
+export function applyOverridesToUI(site, kinks, overrides, scenarios) {
   const hostEl = document.getElementById('hostNameIn');
   if (hostEl) hostEl.value = (overrides && overrides.hostName) || site.hostName || '主人';
   const callEl = document.getElementById('callNamesIn');
@@ -67,19 +233,21 @@ export function applyOverridesToUI(site, kinks, overrides) {
     }
   }
   const grid = document.getElementById('kinkGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  for (const k of kinks.filter((x) => !x.featured)) {
-    const on = enabledMap[k.id] !== undefined ? !!enabledMap[k.id] : k.enabled !== false;
-    const lab = document.createElement('label');
-    lab.className = 'kink-item' + (on ? ' on' : '');
-    lab.innerHTML = `<input type="checkbox" data-kink="${k.id}" ${on ? 'checked' : ''}/><span>${k.icon || ''} ${k.label || k.id}</span>`;
-    const cb = lab.querySelector('input');
-    cb.addEventListener('change', () => {
-      lab.classList.toggle('on', cb.checked);
-    });
-    grid.appendChild(lab);
+  if (grid) {
+    grid.innerHTML = '';
+    for (const k of kinks.filter((x) => !x.featured)) {
+      const on = enabledMap[k.id] !== undefined ? !!enabledMap[k.id] : k.enabled !== false;
+      const lab = document.createElement('label');
+      lab.className = 'kink-item' + (on ? ' on' : '');
+      lab.innerHTML = `<input type="checkbox" data-kink="${k.id}" ${on ? 'checked' : ''}/><span>${k.icon || ''} ${k.label || k.id}</span>`;
+      const cb = lab.querySelector('input');
+      cb.addEventListener('change', () => {
+        lab.classList.toggle('on', cb.checked);
+      });
+      grid.appendChild(lab);
+    }
   }
+  if (scenarios) renderScenarioUI(scenarios, overrides, kinks);
 }
 
 export function enabledKinkSet(kinks, overrides) {
@@ -93,10 +261,11 @@ export function enabledKinkSet(kinks, overrides) {
 }
 
 export async function loadAllData(base = 'data') {
-  const [site, kinksFile, defaults] = await Promise.all([
+  const [site, kinksFile, defaults, scenarios] = await Promise.all([
     fetchJson(`${base}/site.json`),
     fetchJson(`${base}/kinks.json`),
-    fetchJson(`${base}/site-config-defaults.json`).catch(() => ({}))
+    fetchJson(`${base}/site-config-defaults.json`).catch(() => ({})),
+    fetchJson(`${base}/scenarios.json`).catch(() => null)
   ]);
 
   const tasks = {};
@@ -111,7 +280,6 @@ export async function loadAllData(base = 'data') {
     RING_R: site.RING_R || defaults.RING_R || 54,
     RING_C: 2 * Math.PI * (site.RING_R || defaults.RING_R || 54)
   };
-  // strip non-config keys that leaked from defaults nicknames
   const nicknames = defaults.nicknames || [];
   const callNames = defaults.callNames || [];
 
@@ -139,7 +307,8 @@ export async function loadAllData(base = 'data') {
     fail2: lines.fail2 || [],
     shutdown: lines.shutdown || [],
     events: lines.events || [],
-    actOpen: lines.actOpen || {}
+    actOpen: lines.actOpen || {},
+    scenarios: scenarios || null
   };
 
   return {

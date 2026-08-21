@@ -138,3 +138,98 @@ body.facetime-mode #buttons .pillbtn.a {
 body.facetime-mode #console.is-live #topbar {
   padding-right: min(32vw, 140px);
 }
+
+/* 场景选择 */
+body.facetime-mode #setup .card{
+  width:min(94vw,420px);
+}
+.scenario-setup {
+  margin: 14px 0 18px;
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: rgba(52, 199, 89, 0.06);
+  border: 1px solid rgba(52, 199, 89, 0.18);
+  text-align: left;
+}
+.scenario-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+.scenario-chip {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  margin: 0 !important;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  user-select: none;
+  width: auto;
+  float: none;
+}
+.scenario-chip input {
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  accent-color: #34c759;
+  flex: 0 0 auto;
+}
+.scenario-chip span {
+  float: none !important;
+  color: inherit !important;
+  font-weight: inherit !important;
+}
+.scenario-chip.on {
+  background: rgba(52, 199, 89, 0.16);
+  border-color: rgba(52, 199, 89, 0.45);
+  color: #d8ffe6;
+}
+.scenario-chip.dim {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.scenario-grid.is-random .scenario-chip:not(.dim) {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.scenario-preview {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(184, 255, 200, 0.85);
+  font-weight: 650;
+}
+.scenario-toy-actions {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+.scenario-toy-btn {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  margin: 0 !important;
+  width: auto !important;
+  flex: 0 0 auto;
+}
+.scenario-toy-grid .scenario-chip span {
+  font-size: 11.5px;
+}
+
+/* prism 勾选框内文案勿被 .card label span 规则漂走 */
+body.facetime-mode .prism-checkbox__content span,
+body.facetime-mode .prism-checkbox span[data-host] {
+  float: none !important;
+  color: inherit;
+  font-weight: inherit;
+}
+
