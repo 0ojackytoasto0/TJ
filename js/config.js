@@ -80,6 +80,12 @@ export function scenarioPrefsFromOverrides(overrides) {
   };
 }
 
+function locSupportsCond(loc, condId) {
+  if (!loc) return true; // 随机地点：开局再判
+  // 各地点均带马桶；其它条件不因地禁用
+  return true;
+}
+
 export function updateScenarioPreview(scenarios) {
   const el = document.getElementById('scenarioPreview');
   if (!el || !scenarios) return;
@@ -111,9 +117,39 @@ export function updateScenarioPreview(scenarios) {
   el.textContent =
     '将生成：' +
     locLabel +
-    (bits.length ? ' · ' + bits.join(' / ') : ' · 基础指令') +
+    (bits.length ? ' · 必上场 ' + bits.join(' / ') : ' · 基础指令') +
     ' · ' +
     toyBit;
+}
+
+function syncScenarioCondAvailability(scenarios) {
+  const locEl = document.querySelector('input[name="scenarioLoc"]:checked');
+  const locId = locEl ? locEl.value : 'random';
+  const loc =
+    locId === 'random'
+      ? null
+      : (scenarios.locations || []).find((l) => l.id === locId);
+  document.querySelectorAll('#scenarioCondGrid input[type=checkbox][data-cond]').forEach((cb) => {
+    const lab = cb.closest('.scenario-chip');
+    const baseDisabled = cb.dataset.kinkBlocked === '1';
+    const placeOk = locSupportsCond(loc, cb.dataset.cond);
+    const blocked = baseDisabled || !placeOk;
+    cb.disabled = blocked;
+    if (blocked) {
+      cb.checked = false;
+      if (lab) lab.classList.remove('on');
+    }
+    if (lab) {
+      lab.classList.toggle('dim', blocked);
+      const span = lab.querySelector('span');
+      if (span) {
+        const label = cb.dataset.label || cb.dataset.cond;
+        if (baseDisabled) span.textContent = label + '（需开癖好）';
+        else if (!placeOk) span.textContent = label + '（此地不可）';
+        else span.textContent = label + '（勾选必上场）';
+      }
+    }
+  });
 }
 
 export function renderScenarioUI(scenarios, overrides, kinksCatalog) {
@@ -138,6 +174,7 @@ export function renderScenarioUI(scenarios, overrides, kinksCatalog) {
     inp.addEventListener('change', () => {
       locRoot.querySelectorAll('.scenario-chip').forEach((c) => c.classList.remove('on'));
       lab.classList.add('on');
+      syncScenarioCondAvailability(scenarios);
       updateScenarioPreview(scenarios);
     });
     locRoot.appendChild(lab);
@@ -151,7 +188,7 @@ export function renderScenarioUI(scenarios, overrides, kinksCatalog) {
     const on = savedCond[c.id] !== undefined ? !!savedCond[c.id] : !!c.default;
     const lab = document.createElement('label');
     lab.className = 'scenario-chip' + (on && kinkOk ? ' on' : '') + (!kinkOk ? ' dim' : '');
-    lab.innerHTML = `<input type="checkbox" data-cond="${c.id}" data-label="${c.label}" ${on && kinkOk ? 'checked' : ''} ${!kinkOk ? 'disabled' : ''}/><span>${c.label}${!kinkOk ? '（需开癖好）' : ''}</span>`;
+    lab.innerHTML = `<input type="checkbox" data-cond="${c.id}" data-label="${c.label}" data-kink-blocked="${kinkOk ? '0' : '1'}" ${on && kinkOk ? 'checked' : ''} ${!kinkOk ? 'disabled' : ''}/><span>${c.label}${!kinkOk ? '（需开癖好）' : '（勾选必上场）'}</span>`;
     const cb = lab.querySelector('input');
     cb.addEventListener('change', () => {
       lab.classList.toggle('on', cb.checked);
@@ -207,6 +244,7 @@ export function renderScenarioUI(scenarios, overrides, kinksCatalog) {
     randEl.onchange = syncDim;
     syncDim();
   }
+  syncScenarioCondAvailability(scenarios);
   updateScenarioPreview(scenarios);
 }
 

@@ -208,14 +208,72 @@ def collect_jerk(host: str, seen: dict[str, str]):
                 add_text(seen, step["txt"], host)
 
 
+def collect_scenarios(host: str, seen: dict[str, str]):
+    """一对一场景剧本 beats（宿舍/公厕等），此前未进语音包会整段走系统 TTS。"""
+    if not os.path.isfile(SCENARIOS):
+        return
+    sc = load_json(SCENARIOS)
+    beats = sc.get("beats") or {}
+    if not isinstance(beats, dict):
+        return
+    for _kind, arr in beats.items():
+        if not isinstance(arr, list):
+            continue
+        for item in arr:
+            if not isinstance(item, dict):
+                continue
+            papa = item.get("papa") or ""
+            t = item.get("t") or ""
+            if papa:
+                add_text(seen, papa, host)
+            if t:
+                add_text(seen, t, host)
+            if papa and t:
+                add_text(seen, (papa + " " + t).strip(), host)
+    # 兜底到达句（无匹配 beat 时）
+    for loc in sc.get("locations") or []:
+        if isinstance(loc, dict) and loc.get("label"):
+            add_text(seen, "场景：" + loc["label"] + "。", host)
+            add_text(
+                seen,
+                "面对镜头报出你现在的位置「"
+                + loc["label"]
+                + "」，摆好跪姿，说「主人，狗就位」。",
+                host,
+            )
+            add_text(seen, "本场场景：" + loc["label"] + " · 前戏含铃铛", host)
+
+
+def collect_game_js_lines(host: str, seen: dict[str, str]):
+    """从 game.js 里捞中文对白字符串（speak / toast / 口吻短句）。"""
+    path = os.path.join(BASE, "js", "game.js")
+    if not os.path.isfile(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+    # 单引号或双引号里的中文短句
+    for m in re.finditer(r"['\"]([^'\"\n]{4,180})['\"]", src):
+        s = m.group(1)
+        if not re.search(r"[\u4e00-\u9fff]", s):
+            continue
+        # 排除明显非对白
+        if re.search(r"[{}<>/=\\]|function |return |const |var |let ", s):
+            continue
+        if s.startswith("http") or s.endswith(".js") or s.endswith(".mp3"):
+            continue
+        add_text(seen, s, host)
+
+
 def collect(mode: str) -> dict[str, str]:
     host = default_host()
     # 任何模式都带上道具/地点短名模块
     seen = collect_modules(host)
     collect_lines(host, seen)
+    collect_game_js_lines(host, seen)
 
     if mode == "modules":
         collect_intro(host, seen)
+        collect_scenarios(host, seen)
         for name in ("aftercare", "finale"):
             collect_pool(name, host, seen)
         return seen
@@ -223,15 +281,17 @@ def collect(mode: str) -> dict[str, str]:
     if mode == "core":
         collect_intro(host, seen)
         collect_jerk(host, seen)
+        collect_scenarios(host, seen)
         for name in CORE_POOLS:
             collect_pool(name, host, seen)
         return seen
 
-    # full：大部分整句 + 模块
+    # full：大部分整句 + 模块 + 场景剧本
     for name in FULL_POOLS:
         collect_pool(name, host, seen)
     collect_intro(host, seen)
     collect_jerk(host, seen)
+    collect_scenarios(host, seen)
     return seen
 
 
