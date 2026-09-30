@@ -105,13 +105,23 @@ body.facetime-mode .sessionbar i {
   letter-spacing: 1px;
 }
 
-body.facetime-mode #audience {
+body.facetime-mode #audience,
+body.facetime-mode #stats,
+body.facetime-mode #combo,
+body.facetime-mode #prog,
+body.facetime-mode #elapsed,
+body.facetime-mode #taskcard .pbar,
+body.facetime-mode #actBanner {
   display: none !important;
 }
 
 /* 按钮区略偏绿确认色 */
 body.facetime-mode #buttons .pillbtn.a {
   box-shadow: 0 0 18px rgba(52, 199, 89, 0.2);
+}
+body.facetime-mode #buttons .pillbtn.c .bicon {
+  background: linear-gradient(135deg, #ffb020, #e07a12);
+  box-shadow: 0 4px 14px rgba(224, 122, 18, 0.45);
 }
 
 /* 小屏：PiP 缩小，避免挡任务卡 */

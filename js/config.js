@@ -99,7 +99,7 @@ export function updateScenarioPreview(scenarios) {
   const propLabel = {
     door: '门口', desk: '桌边', bed: '床上', mirror: '镜前',
     toilet: '马桶边', shower: '淋浴区', floor: '地上',
-    sofa: '沙发', stall: '隔间', sink: '洗手台'
+    balcony: '阳台', sofa: '沙发', stall: '隔间', sink: '洗手台'
   };
   const routeBit = (loc && loc.route && loc.route.length)
     ? loc.route.map((id) => propLabel[id] || id).join(' → ')

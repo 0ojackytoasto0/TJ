@@ -844,7 +844,8 @@ function ensureMemory(){
     S.memory={
       lastPart:null,lastKink:null,lastOutcome:null,
       pose:null,inserted:false,plugIn:false,activeToy:null,
-      failStreakMem:0,doneStreak:0,lastSnippet:''
+      failStreakMem:0,doneStreak:0,lastSnippet:'',
+      edged:false,came:false
     };
   }
   return S.memory;
@@ -895,8 +896,15 @@ function memoryReactLine(outcome){
   if(!isCall()||!S||!S.scenario)return null;
   const m=ensureMemory();
   const toy=m.activeToy||'玩具';
+  if(outcome==='edged'){
+    return pick(['刚才差点射了。手拿开，缓一下。','哼。忍住了？这回慢一点。','差点。看着镜头，先别碰。']);
+  }
+  if(outcome==='came'){
+    return pick(['射过了。看着镜头喘匀，这通收到这儿。','射了。含着也好、手拿开也好，先喘匀。']);
+  }
   if(outcome==='done'){
     const pool=[];
+    if(m.edged&&!m.came)pool.push('刚才差点射了，这回别冲。');
     if(scenarioInsertAllowed(S.scenario)&&m.plugIn)pool.push('塞子还在里面吧？别自己拔。','里面含着，继续听。');
     if(scenarioInsertAllowed(S.scenario)&&m.inserted)pool.push('后面刚开过，别夹太紧。','扩张过了，待会还用得着。');
     if(m.pose==='kneel')pool.push('跪姿保持，别偷懒坐下去。');
@@ -946,7 +954,8 @@ function sceneImprovLine(task){
   // 记忆残留
   if(scenarioInsertAllowed(sc)&&m.plugIn)pool.push('塞着的话，走一步晃一下给我看。');
   if(scenarioInsertAllowed(sc)&&m.inserted&&act>=2)pool.push('后面已经湿过了，别装第一次。');
-  // 幕次
+  if(m.came)pool.push('射过了，别再偷偷碰前面。');
+  else if(m.edged&&Math.random()<0.45)pool.push('刚才那下差点，这回慢一点。');
   if(act>=3)pool.push('到后半场了，别散。','越来越深了，撑住。');
   if(task&&task.hi)pool.push('这条偏狠，量力。痛了就安全挂断。');
   if(!pool.length)return null;
@@ -1002,7 +1011,7 @@ function softRecoveryTask(sc){
 const PROP_LABEL={
   door:'门口',desk:'桌边',bed:'床上',mirror:'镜前',
   toilet:'马桶边',shower:'淋浴区',floor:'地上',
-  sofa:'沙发',stall:'隔间',sink:'洗手台'
+  balcony:'阳台',sofa:'沙发',stall:'隔间',sink:'洗手台'
 };
 function propLabel(id){return PROP_LABEL[id]||id;}
 function moveLine(id){
@@ -1014,6 +1023,7 @@ function moveLine(id){
     toilet:'走到马桶边。',
     shower:'进淋浴区。',
     floor:'下来，到地上。',
+    balcony:'走到阳台，门带上。',
     sofa:'到沙发上。',
     stall:'退回隔间，门扣好。',
     sink:'到洗手台前。'
@@ -1025,7 +1035,7 @@ function anchorToSpot(task,prop,enter,first){
   t.spot=prop;
   if(enter){
     const lead=first?('先从'+propLabel(prop)+'开始。'):moveLine(prop);
-    const mark={door:'门',desk:'桌',bed:'床',mirror:'镜',toilet:'马桶',shower:'淋浴',floor:'地',sofa:'沙发',stall:'隔',sink:'洗手'}[prop];
+    const mark={door:'门',desk:'桌',bed:'床',mirror:'镜',toilet:'马桶',shower:'淋浴',floor:'地',balcony:'阳台',sofa:'沙发',stall:'隔',sink:'洗手'}[prop];
     const opensHere=!!(mark&&(t.t||'').slice(0,10).indexOf(mark)>=0);
     const key=lead.replace(/[。，]/g,'').slice(0,4);
     if(!opensHere&&(t.t||'').indexOf(key)<0)t.t=lead+t.t;
@@ -1550,10 +1560,6 @@ function buildScenarioSession(sc){
       if(s.spot)return;
       if(s.type!=='jerk'&&s.type!=='climax'&&s.type!=='insert'&&s.type!=='aftercare')return;
       s.spot=sc.mainSpot;
-      if(s.type!=='aftercare'){
-        s.spotStep=spotCursor||spotTotal;
-        s.spotTotal=spotTotal;
-      }
       if(!s.label||s.label.indexOf(lab)!==0)s.label=lab+' · '+(s.label||stageLabelOf(s.type));
     });
   }
@@ -2344,7 +2350,7 @@ function renderStage(){
   const act=st.act||0;
   if(act!==S.curAct){
     S.curAct=act;
-    if(act>0){
+    if(act>0&&!isCall()){
       showActBanner(act);
       if(DATA.actOpen[act])papaToast(pick(DATA.actOpen[act]),3.5);
     }
@@ -2352,7 +2358,9 @@ function renderStage(){
   const sceneBit=(isCall()&&S.scenario)?(S.scenario.label+' · '):'';
   if(isCall()&&st.spot){
     const step=st.spotStep?('第 '+st.spotStep+'/'+st.spotTotal+' 站 · '):'';
-    setText('subLabel',step+st.label+' · 环节 '+(S.si+1)+'/'+S.stages.length);
+    setText('subLabel',step+st.label+' · '+(S.si+1)+'/'+S.stages.length);
+  }else if(isCall()){
+    setText('subLabel',sceneBit+(S.si+1)+'/'+S.stages.length+' · '+st.label);
   }else{
     setText('subLabel',sceneBit+(act>0?'第 '+act+' 幕 · ':'')+'环节 '+(S.si+1)+'/'+S.stages.length+' · '+st.label);
   }
@@ -2369,9 +2377,12 @@ function renderStage(){
   else renderTask(task);
 }
 function renderTask(task){
+  if(!task){finishGame();return;}
   const st=S.stages[S.si];
-  if($('btnA')){$('btnA').disabled=false;$('btnA').classList.remove('dim');}
+  edgePhase=null;
+  if($('btnA')){$('btnA').hidden=false;$('btnA').disabled=false;$('btnA').classList.remove('dim');}
   if($('btnB')){$('btnB').disabled=false;$('btnB').classList.remove('dim');}
+  if($('btnC'))$('btnC').hidden=true;
   const sceneTag=(isCall()&&S.scenario&&(st.type==='arrive'||st.type==='body'||st.type==='place_task'||st.type==='combo'))
     ?('📍 '+S.scenario.label+(task.k?(' · '+task.k):''))
     :null;
@@ -2381,12 +2392,16 @@ function renderTask(task){
     tagText+=' · '+diffLabel(shown);
   }
   setText('kinktag',tagText);
-  setText('nicktag',(isCall()?'通话对象：':'上播选手：')+S.nick);
+  setText('nicktag',isCall()?S.nick:('上播选手：'+S.nick));
   setText('prog','任务 '+(st.idx+1)+'/'+st.tasks.length);
   const prog=$('progress');
   if(prog)prog.style.width=((st.idx+1)/st.tasks.length*100)+'%';
-  setText('tccap',st.type==='punish'?(hostLabel()+' 正在罚你 · 因为你不乖'):((st.type==='chat'||st.type==='aftercare')?(hostLabel()+' 开口说话'):(st.type==='intro'||st.type==='arrive'?(hostLabel()+' 引导中'):(hostLabel()+' 下达指令'))));
-  if(S.combo>=2){setHidden('combo',false);setText('combo','连击×'+S.combo);}
+  if(isCall()){
+    setText('tccap',st.type==='punish'?(hostLabel()+' 在罚你'):(st.type==='aftercare'?(hostLabel()+' 在跟你收尾'):(hostLabel()+' 在对你说话')));
+  }else{
+    setText('tccap',st.type==='punish'?(hostLabel()+' 正在罚你 · 因为你不乖'):((st.type==='chat'||st.type==='aftercare')?(hostLabel()+' 开口说话'):(st.type==='intro'||st.type==='arrive'?(hostLabel()+' 引导中'):(hostLabel()+' 下达指令'))));
+  }
+  if(!isCall()&&S.combo>=2){setHidden('combo',false);setText('combo','连击×'+S.combo);}
   else{setHidden('combo',true);}
   setHtml('tasktext',esc(P(task.t))+(task.follow?'<div class="follow">追问：'+esc(P(task.follow))+'</div>':''));
   const nt=st.tasks[st.idx+1];
@@ -2400,7 +2415,7 @@ function renderTask(task){
     case 'order':setBtn('btnA',isCall()?'照做':'满足观众');setBtn('btnB','拒绝');break;
     case 'recite':setBtn('btnA','已大声复述');setBtn('btnB','念不出口');break;
     case 'aftercare':setBtn('btnA','已完成');if(b)b.hidden=true;break;
-    default:setBtn('btnA','已乖乖照做');setBtn('btnB','做不到…');
+    default:setBtn('btnA',isCall()?'做好了':'已乖乖照做');setBtn('btnB',isCall()?'做不到':'做不到…');
   }
   if(st.type==='chat'&&!isCall()){
     S.chatState='ask';
@@ -2441,7 +2456,7 @@ function renderTask(task){
 }
 
 /* ================= 倒计时 ================= */
-let jerkTimer=null,jerkEnd=0,jerkDur=0,jerkStep=0,jerkWarn=false,currentJerk=null,preCountInt=null;
+let jerkTimer=null,jerkEnd=0,jerkDur=0,jerkStep=0,jerkWarn=false,currentJerk=null,preCountInt=null,edgePhase=null;
 function startJerk(task){
   currentJerk=task;
   $('countdown').hidden=false;
@@ -2474,6 +2489,16 @@ function startJerk(task){
   setBtn('btnB','撑不住了');
   $('btnB').hidden=false;
   $('btnA').disabled=true;$('btnA').classList.add('dim');
+  const edgeBtn=$('btnC');
+  if(isCall()&&edgeBtn){
+    edgeBtn.hidden=false;
+    setBtn('btnC','忍不住了');
+    $('btnA').hidden=true;
+    setText('tccap',hostLabel()+' 在跟你数拍');
+  }else if(edgeBtn){
+    edgeBtn.hidden=true;
+    $('btnA').hidden=false;
+  }
   $('stepText').textContent='准备开始…';
   jerkDur=task.dur;
   jerkStep=0;jerkWarn=false;
@@ -2694,15 +2719,26 @@ function renderTimer(){
   }
   if(remain<=0)endJerk();
 }
-function endJerk(){
+function haltRhythmClock(){
   stopTimer();
   metroStop();
   if(preCountInt){clearInterval(preCountInt);preCountInt=null;}
-  $('preCount').hidden=true;
-  $('restTag').hidden=true;
-  $('pulseRing').classList.remove('rest');
+  const pre=$('preCount');if(pre)pre.hidden=true;
+  const rest=$('restTag');if(rest)rest.hidden=true;
+  const pr=$('pulseRing');if(pr)pr.classList.remove('rest');
+  const pb=$('pauseBtn');if(pb)pb.disabled=false;
+}
+function resetRhythmButtons(){
+  const a=$('btnA');
+  if(a){a.hidden=false;a.disabled=false;a.classList.remove('dim');}
+  const c=$('btnC');
+  if(c)c.hidden=true;
+}
+function endJerk(){
+  if(edgePhase==='ask')return;
+  haltRhythmClock();
   $('countdown').hidden=true;
-  $('btnA').disabled=false;$('btnA').classList.remove('dim');
+  resetRhythmButtons();
   applyTask({o:3,s:7,h:6,st:-10});
   S.failStreak=0;S.combo++;S.done++;
   if(isCall()&&S.scenario){
@@ -2712,12 +2748,100 @@ function endJerk(){
       updateMemoryFromTask({t:'撸管',k:'边缘',part:'cock'},'done');
     }
   }
+  currentJerk=null;
+  edgePhase=null;
   sfx('cheer');dirtyBurst();endComments();
+  afterAction();
+}
+function rhythmFlags(task){
+  const t=task||{};
+  return {
+    insert:!!(t.insertRhythm||t.insertClimax||t.insertWhile),
+    climax:!!(t.strokeClimax||t.insertClimax)
+  };
+}
+/** 跟节奏里「忍不住了」：先停拍，再问忍住了还是已经射了。 */
+function edgeConfess(){
+  const cd=$('countdown');
+  const c=$('btnC');
+  if(edgePhase||!currentJerk||!cd||cd.hidden||!c||c.hidden){unlock();return;}
+  edgePhase='ask';
+  haltRhythmClock();
+  stopSpeak();
+  const kind=rhythmFlags(currentJerk);
+  const line=kind.insert
+    ?(kind.climax?'停。还没到点。含着别动，前面拿开。':'停。含着别动，前面拿开，不许射。')
+    :(kind.climax?'停。还没到点。手拿开。':'停。手拿开，别射。');
+  const title=$('jerkTitle');
+  if(title)title.textContent='先停一下';
+  setText('stepText',line);
+  setText('tasktext','看着镜头。忍住了，还是已经射了？');
+  setText('tccap',hostLabel()+' 在等你');
+  const a=$('btnA');
+  if(a){a.hidden=false;a.disabled=false;a.classList.remove('dim');}
+  setBtn('btnA','忍住了');
+  setBtn('btnB','射了');
+  if($('btnB'))$('btnB').hidden=false;
+  c.hidden=true;
+  speak(line);
+  sfx('click');
+  unlock();
+}
+function trimCallAfterRhythm(extra){
+  const st=S.stages[S.si];
+  st.tasks=st.tasks.slice(0,st.idx+1);
+  let care=null;
+  for(let i=S.stages.length-1;i>S.si;i--){
+    if(S.stages[i].type==='aftercare'){care=S.stages[i];break;}
+  }
+  if(!care||!care.tasks||!care.tasks.length)care=makeScenarioStage('aftercare',4,drawPool('aftercare',3));
+  S.stages=S.stages.slice(0,S.si+1).concat(extra||[]).concat([care]);
+}
+function edgeResolve(came){
+  const task=currentJerk;
+  edgePhase=null;
+  if(!task||!S){unlock();return;}
+  const kind=rhythmFlags(task);
+  haltRhythmClock();
+  stopSpeak();
+  $('countdown').hidden=true;
+  resetRhythmButtons();
+  currentJerk=null;
+  const m=ensureMemory();
+  if(kind.insert)updateMemoryFromTask(task,'done');
+  else updateMemoryFromTask({t:'撸管',k:'边缘',part:'cock'},'done');
+  m.edged=true;
+  if(came){
+    m.came=true;
+    m.lastOutcome=kind.climax?'came':null;
+    applyTask(kind.climax?{o:2,s:3,h:3}:{o:1,s:2,h:1});
+    S.combo=0;
+    S.done++;
+    if(kind.climax){
+      trimCallAfterRhythm([]);
+    }else{
+      const ackTask=kind.insert
+        ?{t:'已经射了。含着别拔，看着镜头说「主人，狗射了」。前面不许再碰。',k:'边缘',o:1,s:2,h:1,part:'ass',spot:spot||null}
+        :{t:'已经射了。跪好，看着镜头说「主人，狗没忍住」。手拿开，不许再碰。',k:'边缘',o:1,s:2,h:1,part:'cock',spot:spot||null};
+      const ack=makeScenarioStage('place_task',(st&&st.act)||2,[ackTask]);
+      if(spot){
+        ack.spot=spot;
+        ack.label='留在'+propLabel(spot);
+      }else ack.label='看着镜头';
+      trimCallAfterRhythm([ack]);
+    }
+  }else{
+    m.lastOutcome='edged';
+    applyTask({o:2,s:1,h:2,st:-4});
+    S.failStreak=0;S.combo++;S.done++;
+  }
+  sfx(came?'done':'click');
   afterAction();
 }
 
 /* ================= 选择 ================= */
 function chooseA(){
+  if(edgePhase==='ask'){edgeResolve(false);return;}
   const st=S.stages[S.si];
   const task=st.tasks[st.idx];
   if((st.type==='jerk'||st.type==='climax')&&task.steps){endJerk();return;}
@@ -2759,6 +2883,7 @@ function chooseA(){
   afterAction();
 }
 function chooseB(){
+  if(edgePhase==='ask'){edgeResolve(true);return;}
   const st=S.stages[S.si];
   const task=st.tasks[st.idx];
   if(st.type==='intro'||st.type==='arrive'){skipIntroStage();return;}
@@ -2857,12 +2982,11 @@ function failHard(){
   S.stats.heat=clamp(S.stats.heat-2,0,100);
   if(st.type==='jerk'||st.type==='climax'){
     addShame(5);
-    stopTimer();metroStop();
-    if(preCountInt){clearInterval(preCountInt);preCountInt=null;}
-    $('preCount').hidden=true;
-    $('restTag').hidden=true;
-    $('pulseRing').classList.remove('rest');
+    haltRhythmClock();
     $('countdown').hidden=true;
+    resetRhythmButtons();
+    currentJerk=null;
+    edgePhase=null;
   }
   sfx('fail');booComments();dirtyBurst();
   if(S.failTotal>=CONFIG.FAIL_SHUTDOWN){startShutdown();return;}
@@ -2921,9 +3045,9 @@ function stageComplete(){
   renderStage();
 }
 function maybeEvent(){
+  if(isCall())return;
   const st=S.stages[S.si];
   if(['jerk','climax','aftercare','warmup','intro','insert','arrive','rules'].includes(st.type))return;
-  if(isCall()&&(st.act||0)<2)return; // 一对一前半段不插随机事件，保证递进
   if(S.refusals>=2&&!S.chainAudienceAngry){
     S.chainAudienceAngry=true;
     fireEvent(findEvent('观众报复'));
@@ -3098,15 +3222,20 @@ async function showEnding(type){
   }
   if(seq!==endSeq)return;
   const st=S.stats;
-  let grid=statCell(isCall()?'通话时长':'直播时长',fmtTime(Date.now()-S.startedAt))
-    +statCell('完成任务',S.done)
-    +statCell('失败次数',S.failTotal)
-    +statCell('跳过问题',S.skipCount)
-    +statCell(isCall()?'拒绝加码': '拒绝观众',S.refusals)
-    +statCell('服从度',st.obey)
-    +statCell('羞耻峰值',S.maxShame)
-    +statCell(isCall()?'满意峰值':'热度峰值',S.maxHeat);
-  if(S.mode==='hard')grid+=statCell('剩余体力',st.stamina);
+  let grid;
+  if(isCall()){
+    grid=statCell('通话时长',fmtTime(Date.now()-S.startedAt))+statCell('听完',S.done);
+  }else{
+    grid=statCell('直播时长',fmtTime(Date.now()-S.startedAt))
+      +statCell('完成任务',S.done)
+      +statCell('失败次数',S.failTotal)
+      +statCell('跳过问题',S.skipCount)
+      +statCell('拒绝观众',S.refusals)
+      +statCell('服从度',st.obey)
+      +statCell('羞耻峰值',S.maxShame)
+      +statCell('热度峰值',S.maxHeat);
+    if(S.mode==='hard')grid+=statCell('剩余体力',st.stamina);
+  }
   if(isCall()&&S.scenario){
     const cond=S.scenario.conditions||{};
     const bits=[];
@@ -3122,7 +3251,7 @@ async function showEnding(type){
   const hot=shuffle(DATA.comments.instruct).slice(0,3).map(function(c){
     return '<div class="hotc">「'+esc(P(c.t))+'」</div>';
   }).join('');
-  setHtml('endStats','<h3>本局总结</h3><div class="stat-grid">'+grid+'</div><div class="hot">'+(isCall()?'主人评语：':'观众热评：')+hot+'</div>');
+  setHtml('endStats','<h3>'+(isCall()?'这通电话':'本局总结')+'</h3><div class="stat-grid">'+grid+'</div><div class="hot">'+(isCall()?'主人评语：':'观众热评：')+hot+'</div>');
 }
 function stopAll(){
   stopCommentLoop();stopTimer();metroStop();stopSpeak();
@@ -3330,7 +3459,16 @@ function startGame(){
   if(cons)cons.classList.add('is-live');
   setHidden('topbar',false);
   setHidden('taskcard',false);
-  setHidden('stats',false);
+  setHidden('stats',isCall());
+  if(isCall()){
+    setHidden('prog',true);
+    setHidden('elapsed',true);
+    setHidden('combo',true);
+    const pbar=document.querySelector('#taskcard .pbar');
+    if(pbar)pbar.hidden=true;
+    const ab=$('actBanner');
+    if(ab)ab.hidden=true;
+  }
   setHidden('audience',isCall()); // 一对一：不显示私信墙
   setHidden('buttons',false);
   setHidden('safeStop',false);
@@ -3451,6 +3589,7 @@ function init(){
   $('replayBtn').onclick=function(){location.reload();};
   $('btnA').onclick=function(){if(busy)return;busy=true;try{chooseA();}catch(e){unlock();throw e;}};
   $('btnB').onclick=function(){if(busy)return;busy=true;try{chooseB();}catch(e){unlock();throw e;}};
+  if($('btnC'))$('btnC').onclick=function(){if(busy)return;busy=true;try{edgeConfess();}catch(e){unlock();throw e;}};
   $('pauseBtn').onclick=pauseGame;
   $('pauseResume').onclick=resumeGame;
   $('pauseExit').onclick=exitToSetup;
