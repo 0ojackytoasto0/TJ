@@ -12,11 +12,25 @@ function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(M
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function fmtTime(ms){var s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
 function isCall(){return !!(window.TJ&&TJ.mode==='facetime');}
+function modeLong(){return !!(S&&(S.mode==='hard'||S.mode==='extreme'));}
+function stripExtremeRisk(s){
+  if(!S||S.mode!=='extreme')return s;
+  var t=String(s);
+  t=t.replace(/（[^）]{0,60}(量力|安全|受不了|能承受|注意安全|不要勉强)[^）]*）/g,'');
+  t=t.replace(/[，,；;]?\s*[^，。；;\n]{0,40}(安全挂断|安全停播|量力而行|受不了就[^，。；;\n]{0,24}|烫就停|不要勉强|别逞强|注意安全距离)/g,'');
+  t=t.replace(/痛了或不适立刻/g,'');
+  t=t.replace(/[，,；;]?\s*(痛了就[^，。；;\n]{0,18}|勒红了就[^，。；;\n]{0,12})/g,'');
+  t=t.replace(/[，、；;]{2,}/g,'，');
+  t=t.replace(/[，；;]\s*。/g,'。');
+  t=t.replace(/。{2,}/g,'。');
+  t=t.replace(/^[，；;\s]+/,'');
+  return t;
+}
 function hostLabel(){return (window.TJ&&TJ.hostName)||(CONFIG&&CONFIG.hostName)||'主人';}
 function phrase(txt){
   var s=String(txt==null?'':txt);
   if(!isCall())return s;
-  return s
+  s=s
     .replace(/直播间/g,'通话')
     .replace(/模拟观众/g,'主人')
     .replace(/观众们/g,'主人')
@@ -29,6 +43,7 @@ function phrase(txt){
     .replace(/在线围观/g,'盯着你')
     .replace(/人在看/g,'人一通')
     .replace(/人在线/g,'加密通道');
+  return stripExtremeRisk(s);
 }
 function P(txt){
   var host=hostLabel();
@@ -170,7 +185,7 @@ function buildInsertTasks(){
     byStep[s].push(t);
   });
   const steps=Object.keys(byStep).map(Number).sort(function(a,b){return a-b;});
-  const hard=S.mode==='hard';
+  const hard=modeLong();
   // easy: skip every other deep step sometimes; hard: full ladder
   let use=steps;
   if(!hard&&steps.length>4){
@@ -180,7 +195,7 @@ function buildInsertTasks(){
   return use.map(function(s){return Object.assign({},pick(byStep[s]));});
 }
 function buildTasks(type,act){
-  const hard=S.mode==='hard';
+  const hard=modeLong();
   switch(type){
     case 'intro': return DATA.intro.map(function(x){
       var t=Object.assign({},x);
@@ -393,7 +408,7 @@ const STROKE_CLIMAX_STEPS=[
   {p:95,txt:'可以射了。射的时候不许躲开。'}
 ];
 function rhythmDur(diff,climax){
-  const hard=S&&S.mode==='hard';
+  const hard=modeLong();
   let dur=climax?R(52,68):(diff<=1?R(28,36):(diff===2?R(38,48):R(48,60)));
   if(hard&&(climax||diff>=2))dur+=R(4,10);
   return dur;
@@ -440,7 +455,7 @@ function buildScenarioInsertOnly(sc,act){
   const pool=(DATA.insert||[]).filter(kinkAllowed);
   let band=pool.filter(function(t){return insertStepDiff(t.step)===target;});
   if(!band.length)band=pool.filter(function(t){return Math.abs(insertStepDiff(t.step)-target)<=1;});
-  const n=(target>=3&&S.mode==='hard')?2:1;
+  const n=(target>=3&&modeLong())?2:1;
   const bag=band.slice();
   const picked=[];
   while(picked.length<n&&bag.length){
@@ -924,6 +939,7 @@ function memoryReactLine(outcome){
 }
 function sceneImprovLine(task){
   if(!isCall()||!S||!S.scenario)return null;
+  const extreme=S.mode==='extreme';
   const sc=S.scenario;
   const m=ensureMemory();
   const st=S.stages[S.si];
@@ -948,8 +964,11 @@ function sceneImprovLine(task){
     pool.push('铃铛还在响吗。','塞着走，我要听见铃。','别偷偷拔塞子。');
   }
   if(has('vibe')&&Math.random()<0.5)pool.push('跳蛋充好电了吗。','跳蛋待会用得上。');
-  if(scenarioInsertAllowed(sc)&&has('dildo')&&Math.random()<0.55)pool.push('假鸡巴润滑准备好。','尺寸你自己清楚，别逞强。');
-  if(has('candle')&&Math.random()<0.4)pool.push('蜡烛小心烫，受不了就停。');
+  if(scenarioInsertAllowed(sc)&&has('dildo')&&Math.random()<0.55){
+    pool.push('假鸡巴润滑准备好。');
+    if(!extreme)pool.push('尺寸你自己清楚，别逞强。');
+  }
+  if(!extreme&&has('candle')&&Math.random()<0.4)pool.push('蜡烛小心烫，受不了就停。');
   if(has('oral')&&Math.random()<0.4)pool.push('口罩那根，嘴也别闲着。');
   // 记忆残留
   if(scenarioInsertAllowed(sc)&&m.plugIn)pool.push('塞着的话，走一步晃一下给我看。');
@@ -957,7 +976,7 @@ function sceneImprovLine(task){
   if(m.came)pool.push('射过了，别再偷偷碰前面。');
   else if(m.edged&&Math.random()<0.45)pool.push('刚才那下差点，这回慢一点。');
   if(act>=3)pool.push('到后半场了，别散。','越来越深了，撑住。');
-  if(task&&task.hi)pool.push('这条偏狠，量力。痛了就安全挂断。');
+  if(!extreme&&task&&task.hi)pool.push('这条偏狠，量力。痛了就安全挂断。');
   if(!pool.length)return null;
   // 约 65% 触发，避免每句都加码
   if(Math.random()>0.65)return null;
@@ -979,6 +998,7 @@ function callSpeakTask(task,extra){
   if(react)bits.push(react);
   if(improv)bits.push(improv);
   if(task.stayPlugNote)bits.push(task.stayPlugNote);
+  if(task.stackNote)bits.push(task.stackNote);
   if(task.sockMouthNote)bits.push(task.sockMouthNote);
   if(Math.random()<0.6)bits.push(callCheckInLine());
   if(Math.random()<0.16)bits.push('不对——');
@@ -1099,8 +1119,133 @@ function roomRoute(sc){
   if(scenarioCondOn(sc,'stationery')||scenarioCondOn(sc,'glue'))ensure('desk');
   return route;
 }
+function extremeKinkOk(sc,kink){
+  if(!kinkOn(kink))return false;
+  if(sc&&(sc.incompatible||[]).indexOf(kink)>=0)return false;
+  return true;
+}
+function extremeHasUrine(sc){
+  if(!scenarioCondOn(sc,'wet'))return false;
+  return extremeKinkOk(sc,'尿液')||extremeKinkOk(sc,'饮尿');
+}
+function extremeStackIds(sc){
+  const ids=[];
+  if(extremeKinkOk(sc,'橡皮筋')&&stationeryOn(sc))ids.push('band');
+  if(extremeKinkOk(sc,'夹子')&&stationeryOn(sc))ids.push('clip');
+  if((extremeKinkOk(sc,'胶棒')||extremeKinkOk(sc,'胶水'))&&glueOn(sc))ids.push('glue');
+  const urine=extremeHasUrine(sc);
+  const sock=extremeKinkOk(sc,'袜子');
+  const toilet=(sc.props||[]).indexOf('toilet')>=0;
+  if(urine){
+    ids.push('pee_head');
+    ids.push('pee_lick');
+  }
+  if(sock&&urine&&toilet)ids.push('sock_toilet');
+  else if(sock)ids.push('sock');
+  if(ids.length)ids.push('check');
+  return ids;
+}
+function extremeWorn(stages){
+  const worn=[];
+  (stages||[]).forEach(function(s){
+    (s.tasks||[]).forEach(function(t){
+      if(t&&t.stackStay)worn.push(t.stackStay);
+    });
+  });
+  return worn;
+}
+function extremeStackTask(id,sc,stages){
+  if(id==='check'){
+    const worn=extremeWorn(stages);
+    if(!worn.length)return null;
+    return {
+      label:'都留着',
+      task:{
+        papa:'都留着。',
+        t:'对着镜头报一遍还在身上的：'+worn.join('、')+'。报完一样不许拿下来。',
+        k:'羞耻姿势',o:2,s:4,h:3
+      }
+    };
+  }
+  if(id==='band'){
+    return {label:'留着橡皮筋',task:{
+      papa:'橡皮筋套上。',
+      t:'橡皮筋松松套在阴茎根部一圈。套上就不摘，留到这通挂断。',
+      k:'橡皮筋',o:2,s:4,h:3,stackStay:'根部的橡皮筋'
+    }};
+  }
+  if(id==='clip'){
+    return {label:'留着夹子',task:{
+      papa:'夹子夹上。',
+      t:'夹子夹在乳头上，或者夹在包皮上。夹上就不摘，留到挂断。',
+      k:'夹子',o:2,s:4,h:3,stackStay:'夹子'
+    }};
+  }
+  if(id==='glue'){
+    const stick=extremeKinkOk(sc,'胶棒');
+    return {label:'留着胶',task:{
+      papa:'胶留着。',
+      t:stick
+        ?'胶棒在小腹或大腿内侧涂开，贴上一小张纸。纸和胶都留着，不许撕，挂断再揭。'
+        :'胶水在大腿内侧涂一小块，晾到发黏。不许擦掉，留到挂断。',
+      k:stick?'胶棒':'胶水',o:2,s:4,h:3,stackStay:'身上的胶'
+    }};
+  }
+  if(id==='pee_head'){
+    return {label:'尿倒头上',task:{
+      papa:'倒在头上。',
+      t:'尿进杯子。这一杯全部倒在自己头上，头发、脸、脖子都浇到。不许擦，留到挂断。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'头上的尿'
+    }};
+  }
+  if(id==='pee_lick'){
+    return {label:'尿倒地上舔',task:{
+      papa:'倒地上舔。',
+      t:'再尿一泡，倒在地上，趴下去舔。嘴上的留着，不许擦。已经留在身上的也不许拿下来。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'舔过的尿'
+    }};
+  }
+  if(id==='sock_toilet'){
+    const drink=extremeKinkOk(sc,'饮尿');
+    return {
+      label:'袜子泡了含着',
+      spot:'toilet',
+      task:{
+        papa:'袜子泡上再含着。',
+        t:'走到马桶边。脱下一只穿过的袜子，泡进马桶水里。头上和身上的尿留着，也抹一些到袜子上。把这只湿袜子咬进嘴里，含到挂断，不许吐。'+(drink?'再尿一点点进杯子，隔着这只袜子喝掉。':''),
+        k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的湿袜子',sockBite:true
+      }
+    };
+  }
+  if(id==='sock'){
+    return {label:'咬着袜子',task:{
+      papa:'袜子叼上。',
+      t:'脱下一只穿过的袜子，咬在嘴里。含到这通挂断，不许吐。说话含糊没关系。',
+      k:'袜子',o:2,s:4,h:3,stackStay:'嘴里的袜子',sockBite:true
+    }};
+  }
+  return null;
+}
+function noteExtremeStack(stages){
+  if(!S||S.mode!=='extreme'||!stages)return stages;
+  const worn=[];
+  stages.forEach(function(s){
+    const care=s.type==='aftercare';
+    (s.tasks||[]).forEach(function(t){
+      if(!t)return;
+      if(worn.length){
+        t.stackNote=care
+          ?('身上这些挂断再拿：'+worn.join('、')+'。现在先留着。')
+          :('已经留着的别拿下来：'+worn.join('、')+'。');
+      }
+      if(t.stackStay)worn.push(t.stackStay);
+    });
+  });
+  return stages;
+}
 function buildRoomBeats(sc,route){
-  const hard=S.mode==='hard';
+  const extreme=S.mode==='extreme';
+  const hard=S.mode==='hard'||extreme;
   const main=mainSurface(route);
   const beats=[];
   if(!skipIntroSel)beats.push('rules');
@@ -1120,7 +1265,7 @@ function buildRoomBeats(sc,route){
     // 第一次在落点做完，就插一段节奏，不堆到最后
     if(i===firstMain)beats.push('jerk');
   });
-  // 困难再走一圈；两种模式都按路线补场，简单约 20 场，困难约 45 场
+  // 简单约 20 场，困难和极限约 45 场。极限不走第二圈，末尾把叠加上的东西留到挂断
   const insertOn=scenarioInsertAllowed(sc);
   function projected(list){
     if(!insertOn)return list.length;
@@ -1129,7 +1274,7 @@ function buildRoomBeats(sc,route){
     return n;
   }
   const tail=[];
-  if(hard){
+  if(hard&&!extreme){
     const mid=Math.max(0,Math.floor((route.length-1)/2));
     route.forEach(function(prop,i){
       pushStop(prop,1);
@@ -1139,6 +1284,9 @@ function buildRoomBeats(sc,route){
     tail.push('pen:'+risk);
     if(risk!==main)tail.push('spot:'+main);
     tail.push('jerk');
+  }
+  if(extreme){
+    extremeStackIds(sc).forEach(function(id){tail.push('stack:'+id);});
   }
   tail.push('climax','aftercare');
   const target=hard?45:20;
@@ -1202,7 +1350,7 @@ function pickSpotTask(sc,prop,act,lastPart,usedKeys,preferInsert,preferCond){
 
 function buildScenarioSession(sc){
   const raw=scenarioData();
-  const hard=S.mode==='hard';
+  const hard=modeLong();
   const room=roomRoute(sc);
   const useRoom=room.length>0;
   let beats;
@@ -1214,7 +1362,7 @@ function buildScenarioSession(sc){
     const arcKey=hard?'hard':'easy';
     beats=(raw&&raw.arcs&&raw.arcs[arcKey])?raw.arcs[arcKey].slice():null;
     if(!beats||!beats.length){
-      return maybeBiteSockTillEnd(buildCallScheduleLegacy().map(function(s){return makeStage(s.type,s.act);}));
+      return maybeBiteSockTillEnd(noteExtremeStack(buildCallScheduleLegacy().map(function(s){return makeStage(s.type,s.act);})));
     }
     if(skipIntroSel)beats=beats.filter(function(b){return b!=='rules';});
   }
@@ -1345,6 +1493,28 @@ function buildScenarioSession(sc){
         }
         stages.push(stg);
       }
+      continue;
+    }
+    if(String(kind).indexOf('stack:')===0){
+      const built=extremeStackTask(kind.slice(6),sc,stages);
+      if(!built)continue;
+      let task=built.task;
+      if(built.spot){
+        task.spot=built.spot;
+        roomSpot=built.spot;
+      }else{
+        const stay=roomSpot||(sc&&sc.mainSpot)||null;
+        if(stay){
+          task.spot=stay;
+          if((task.t||'').indexOf(propLabel(stay))<0)task.t='人留在'+propLabel(stay)+'。'+task.t;
+        }
+      }
+      task=withStayPlugNote(task);
+      if(task.sockBite)S.sockInMouth=true;
+      const stg=makeScenarioStage('place_task',beatAct,[task]);
+      stg.label=built.label;
+      if(task.spot)stg.spot=task.spot;
+      stages.push(stg);
       continue;
     }
     if(kind.indexOf('spot:')===0||kind.indexOf('stay:')===0||kind.indexOf('pen:')===0){
@@ -1565,10 +1735,11 @@ function buildScenarioSession(sc){
       if(!s.label||s.label.indexOf(lab)!==0)s.label=lab+' · '+(s.label||stageLabelOf(s.type));
     });
   }
-  return maybeBiteSockTillEnd(stages);
+  return maybeBiteSockTillEnd(noteExtremeStack(stages));
 }
-/** 开了袜子时，约一半通话在中段咬上，含到挂断。 */
+/** 开了袜子时，约一半通话在中段咬上，含到挂断。极限末尾另有叠袜子，这里不再插一次。 */
 function maybeBiteSockTillEnd(stages){
+  if(S&&S.mode==='extreme')return stages;
   S.sockInMouth=false;
   if(!isCall()||!kinkOn('袜子')||!stages||!stages.length)return stages;
   if(S.scenario&&(S.scenario.incompatible||[]).indexOf('袜子')>=0)return stages;
@@ -1608,7 +1779,7 @@ function maybeBiteSockTillEnd(stages){
 }
 /** 旧一对一阶梯（无 scenarios 数据时回退） */
 function buildCallScheduleLegacy(){
-  const hard=S.mode==='hard';
+  const hard=modeLong();
   const stages=[];
   if(!skipIntroSel)stages.push({type:'intro',act:0});
   stages.push({type:'warmup',act:1});
@@ -2484,10 +2655,12 @@ function renderTask(task){
     const improv=sceneImprovLine(task);
     if(S.memory)S.memory.lastOutcome=null;
     const sockNote=task.sockMouthNote||null;
-    if(reactHint||improv||sockNote){
+    const stackNote=task.stackNote||null;
+    if(reactHint||improv||sockNote||stackNote){
       const tips=[];
       if(reactHint)tips.push(esc(reactHint));
       if(improv)tips.push(esc(improv));
+      if(stackNote)tips.push(esc(stackNote));
       if(sockNote)tips.push(esc(sockNote));
       setHtml('tasktext','<div class="follow call-live-tip">'+tips.join(' · ')+'</div>'+esc(P(task.t))+(task.follow?'<div class="follow">追问：'+esc(P(task.follow))+'</div>':''));
     }
@@ -2519,7 +2692,8 @@ function startJerk(task){
     :(task.strokeClimax
       ?('高潮收束 · 跟节奏撸 · '+dLab)
       :(rhythm?('跟节奏插入 · '+dLab):(stroke?('跟节奏撸 · '+dLab):(task.climax?'高潮收束 · 倒计时':'倒计时撸管'))));
-  const openLine=(task.sockMouthNote?task.sockMouthNote:'')+(rhythm?insertOpen:(stroke?strokeOpen:'跟着节拍撸动，坚持到倒计时结束。'));
+  const held=(task.stackNote?task.stackNote:'')+(task.sockMouthNote?task.sockMouthNote:'');
+  const openLine=held+(rhythm?insertOpen:(stroke?strokeOpen:'跟着节拍撸动，坚持到倒计时结束。'));
   $('tasktext').textContent=openLine;
   $('kinktag').textContent=task.insertClimax
     ?('🔥 跟节奏插入 · '+dLab)
@@ -3584,11 +3758,33 @@ function init(){
       ok.classList.toggle('dim',!ageCheck.checked);
     };
   }
+  function enableExtremeDefaults(){
+    if(!isCall())return;
+    ['夹子','橡皮筋','胶水','胶棒','袜子','尿液','饮尿'].forEach(function(id){
+      document.querySelectorAll('input[type=checkbox][data-kink="'+id+'"]').forEach(function(cb){
+        cb.checked=true;
+        const lab=cb.closest('label');
+        if(lab)lab.classList.add('on');
+      });
+    });
+    const rand=$('scenarioRandomAll');
+    if(rand)rand.checked=false;
+    const kinkGrid=$('kinkGrid');
+    if(kinkGrid)kinkGrid.dispatchEvent(new Event('change',{bubbles:true}));
+    else if(rand)rand.dispatchEvent(new Event('change',{bubbles:true}));
+    ['stationery','glue','wet'].forEach(function(id){
+      const cb=document.querySelector('#scenarioCondGrid input[data-cond="'+id+'"]');
+      if(cb&&!cb.disabled)cb.checked=true;
+    });
+    const condGrid=$('scenarioCondGrid');
+    if(condGrid)condGrid.dispatchEvent(new Event('change',{bubbles:true}));
+  }
   document.querySelectorAll('.mode').forEach(function(b){
     b.onclick=function(){
       document.querySelectorAll('.mode').forEach(function(x){x.classList.remove('sel');});
       b.classList.add('sel');
       modeSel=b.dataset.m;
+      if(modeSel==='extreme')enableExtremeDefaults();
     };
   });
   const skipIntroEl=$('skipIntro');
