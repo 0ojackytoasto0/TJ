@@ -51,8 +51,8 @@ let skipIntroSel=false;
 let busy=false;
 let nickConfirmed=false;
 let paused=false,jerkRemainMs=null,chatRemainMs=null,chatDeadline=0;
-const LABELS={warmup:'开场热身',intro:'开播引导',instruct:'指令性任务',train:'体训任务',jerk:'倒计时撸管',chat:'休息问答',punish:'惩罚任务',order:'观众点菜',recite:'口令跟读',insert:'后庭插入',climax:'高潮收束',aftercare:'后调安抚'};
-const LABELS_CALL={warmup:'开场热身',intro:'接通引导',instruct:'指令性任务',train:'体训任务',jerk:'倒计时撸管',chat:'休息问答',punish:'惩罚任务',order:'主人加码',recite:'口令跟读',insert:'后庭插入',climax:'高潮收束',aftercare:'后调安抚',rules:'接通规矩',arrive:'场景就位',body:'身体指令',place_task:'场景任务',combo:'组合任务'};
+const LABELS={warmup:'开场热身',intro:'开播引导',instruct:'指令性任务',jerk:'倒计时撸管',chat:'休息问答',punish:'惩罚任务',order:'观众点菜',recite:'口令跟读',insert:'后庭插入',climax:'高潮收束',aftercare:'后调安抚'};
+const LABELS_CALL={warmup:'开场热身',intro:'接通引导',instruct:'指令性任务',jerk:'倒计时撸管',chat:'休息问答',punish:'惩罚任务',order:'主人加码',recite:'口令跟读',insert:'后庭插入',climax:'高潮收束',aftercare:'后调安抚',rules:'接通规矩',arrive:'场景就位',body:'身体指令',place_task:'场景任务',combo:'组合任务'};
 function stageLabelOf(type){return (isCall()?LABELS_CALL:LABELS)[type]||type;}
 
 function newState(nick,mode){
@@ -157,7 +157,9 @@ function themedDraw(poolKey,n,excludeK,extra){
 }
 
 /* ================= 环节 ================= */
-const KINK_ICON={'脚':'👣','袜子':'🧦','内裤':'🩲','鞋子':'👟','龟头责':'🍆','尿液':'💦','睾丸':'🥚','边缘':'🫠','寸止':'✋','肛门':'🍑','羞耻姿势':'🙇','雄堕':'🐶','体训':'💪','惩罚':'🌶️','后调':'🕊️','撸管':'💦','边缘·高潮':'🔥','夹子':'🔗','马桶':'🚽','饮尿':'🥂','身体涂写':'🖊️','假鸡巴':'🍆'};
+const KINK_ICON={'脚':'👣','袜子':'🧦','内裤':'🩲','鞋子':'👟','龟头责':'🍆','尿液':'💦','睾丸':'🥚','边缘':'🫠','寸止':'✋','肛门':'🍑','羞耻姿势':'🙇','雄堕':'🐶','惩罚':'🌶️','后调':'🕊️','撸管':'💦','边缘·高潮':'🔥','夹子':'🔗','马桶':'🚽','饮尿':'🥂','身体涂写':'🖊️','橡皮筋':'🪢','胶带':'🩹','直尺':'📏','胶水':'🧴','胶棒':'🖍️','假鸡巴':'🍆'};
+const STATIONERY_KINKS=['夹子','身体涂写','橡皮筋','胶带','直尺'];
+const GLUE_KINKS=['胶水','胶棒'];
 function buildInsertTasks(){
   const pool=(DATA.insert||[]).filter(kinkAllowed);
   if(!pool.length)return themedDraw('instruct',3,S.avoidKink,function(t){return t.k==='假鸡巴'||t.k==='肛门';});
@@ -196,10 +198,6 @@ function buildTasks(type,act){
       if(act===1)return themedDraw('instruct',n,S.avoidKink,function(t){return !t.hi;});
       return themedDraw('instruct',n,S.avoidKink);
     }
-    case 'train': {
-      if(!kinkOn('体训'))return themedDraw('instruct',(hard?2:1)+(act===3?1:0),S.avoidKink);
-      return drawPool('train',(hard?2:1)+(act===3?1:0));
-    }
     case 'jerk': {
       const n=(act===3)?(hard?R(2,3):R(1,2)):(hard?R(1,2):1);
       const rounds=[];
@@ -235,41 +233,238 @@ function pickJerk(climax){
     :(climax?R(...CONFIG.CLIMAX_DUR):R(...CONFIG.JERK_DUR));
   return {t:j.t,dur:dur,steps:j.steps,climax:!!climax,k:j.k};
 }
+function taskDiff(t){
+  if(!t)return 2;
+  if(t.diff!=null)return clamp(+t.diff,1,3);
+  if(t.hi)return 3;
+  if(t.act!=null)return clamp(+t.act,1,3);
+  return 2;
+}
+function diffLabel(d){
+  d=clamp(d||2,1,3);
+  return d<=1?'入门':(d>=3?'高强度':'进阶');
+}
+function taskFam(t){
+  if(!t)return '';
+  if(t.fam)return t.fam;
+  const cond=(t.needCond&&t.needCond.length)?t.needCond.slice().sort().join('+'):'';
+  const need=(t.need&&t.need.length)?t.need.slice().sort().join('+'):'';
+  return [t.part||'',t.k||'',t.needInsert?1:0,cond,need].join('|');
+}
+function diffInWindow(d,act){
+  const a=clamp(act||2,1,3);
+  if(a<=1)return d<=1;
+  if(a>=3)return d>=2;
+  return d===1||d===2;
+}
+function filterByDiff(pool,act){
+  if(!pool||!pool.length)return [];
+  const a=clamp(act||2,1,3);
+  const hasScale=pool.some(function(t){return t&&(t.diff!=null||t.act!=null||t.hi);});
+  if(!hasScale)return pool.slice();
+  const exact=pool.filter(function(t){return taskDiff(t)===a;});
+  if(exact.length)return exact;
+  const soft=pool.filter(function(t){return diffInWindow(taskDiff(t),act);});
+  return soft.length?soft:pool.slice();
+}
+function pickVariant(list,act,usedKeys){
+  if(!list||!list.length)return null;
+  const a=clamp(act||2,1,3);
+  let bag=list.filter(function(t){return diffInWindow(taskDiff(t),act);});
+  if(!bag.length)bag=list.slice();
+  const fresh=bag.filter(function(t){
+    const key=(t.t||'')+(t.part||'');
+    return !(usedKeys&&usedKeys[key]);
+  });
+  if(fresh.length)bag=fresh;
+  let bestDist=99,cands=[];
+  bag.forEach(function(t){
+    const dist=Math.abs(taskDiff(t)-a);
+    if(dist<bestDist){bestDist=dist;cands=[t];}
+    else if(dist===bestDist)cands.push(t);
+  });
+  return cands.length?pick(cands):null;
+}
+function chooseFromPool(pool,act,usedKeys){
+  if(!pool||!pool.length)return null;
+  const grouped={};
+  pool.forEach(function(t){
+    const f=taskFam(t);
+    if(!grouped[f])grouped[f]=[];
+    grouped[f].push(t);
+  });
+  const a=clamp(act||2,1,3);
+  const famKeys=Object.keys(grouped);
+  const exact=famKeys.filter(function(f){
+    return grouped[f].some(function(t){return taskDiff(t)===a;});
+  });
+  const inWin=famKeys.filter(function(f){
+    return grouped[f].some(function(t){return diffInWindow(taskDiff(t),act);});
+  });
+  const order=shuffle(exact.length?exact:(inWin.length?inWin:famKeys));
+  for(let i=0;i<order.length;i++){
+    const best=pickVariant(grouped[order[i]],act,usedKeys||{});
+    if(best)return best;
+  }
+  return null;
+}
+function insertStepDiff(step){
+  const s=step||1;
+  if(s<=2)return 1;
+  if(s<=4)return 2;
+  return 3;
+}
+function rhythmDiffByOrder(i,n){
+  if(n<=1)return 2;
+  if(i<=0)return 1;
+  if(i>=n-1)return 3;
+  return 2;
+}
+const RHYTHM_EASY_STEPS=[
+  {p:8,txt:'涂好润滑，把头部推进去，然后慢慢抽插。只进一半，跟着节拍一进一出，寻找后面的感觉。'},
+  {p:30,txt:'慢一点，轻轻抽，每一下退到只剩头部再推进。不许碰前面。'},
+  {p:48,txt:'停！含住不动，深呼吸三次。'},
+  {p:64,txt:'继续，保持慢节奏抽插，夹一下再放松。'},
+  {p:84,txt:'匀速，别加快，喘给主人听。'},
+  {p:95,txt:'停住含着，双手离开前面，等这一段结束。'}
+];
+const RHYTHM_MID_STEPS=[
+  {p:6,txt:'开始抽插，跟着节拍进出，停在你能承受的深度。'},
+  {p:22,txt:'快一点，抽插加快，每四下在心里数一下。前面不许用手。'},
+  {p:40,txt:'停！含到最深，不许拔出来，数五秒。'},
+  {p:55,txt:'继续抽插，匀速，夹紧再松开。'},
+  {p:74,txt:'加速，往深处顶，但不要硬来。'},
+  {p:90,txt:'保持节奏，不许射，也不许摸前面。'},
+  {p:96,txt:'停住含着，扒开给镜头看，喘着等结束。'}
+];
+const RHYTHM_HARD_STEPS=[
+  {p:5,txt:'开始抽插，跟上节拍，不许停。'},
+  {p:18,txt:'快一点，用力抽插，让主人听见喘息。'},
+  {p:34,txt:'冲刺，更快更用力，屁股自己送上去。'},
+  {p:48,txt:'停！含住最深，深呼吸三次再继续。'},
+  {p:60,txt:'继续抽插，这次要更接近边缘，前面仍然不许碰。'},
+  {p:76,txt:'全力抽插，冲上边缘，夹着别射。'},
+  {p:90,txt:'边缘！含着停住，抖着等，不许射。'},
+  {p:96,txt:'再慢抽几下就停，含住等到倒计时结束。'}
+];
+const RHYTHM_CLIMAX_STEPS=[
+  {p:6,txt:'最后一段。跟着节拍抽插，前面先别碰。'},
+  {p:22,txt:'快一点，抽插加快，每一下都进到你能承受的深度。'},
+  {p:40,txt:'停！含住最深，深呼吸三次。'},
+  {p:54,txt:'继续抽插，夹紧，把快感留在后面。'},
+  {p:72,txt:'加速抽插，往边缘冲。前面只许虚握，不许自己撸。'},
+  {p:86,txt:'冲刺，全力抽插。'},
+  {p:95,txt:'可以射了。射的时候含着，不许自己拔出来。'}
+];
+const STROKE_EASY_STEPS=[
+  {p:8,txt:'开始慢慢撸，只套半根，跟着节拍寻找感觉。'},
+  {p:30,txt:'慢一点，轻轻撸，在龟头多停一下。'},
+  {p:48,txt:'停！松开手，深呼吸三次。'},
+  {p:64,txt:'继续，保持慢节奏，另一只手可以摸乳头。'},
+  {p:84,txt:'匀速，别加快，喘给主人听。'},
+  {p:95,txt:'停住，把手拿开，等这一段结束。'}
+];
+const STROKE_MID_STEPS=[
+  {p:6,txt:'开始撸，跟着节拍整根套弄。'},
+  {p:22,txt:'快一点，加速，每四下在心里数一下。'},
+  {p:40,txt:'停！捏住根部，数五秒。'},
+  {p:55,txt:'继续，匀速撸，把蛋托起来给镜头看。'},
+  {p:74,txt:'加速，往边缘冲，但不要越过。'},
+  {p:90,txt:'边缘了就停！双手离开。'},
+  {p:96,txt:'再慢撸十几下，停住等结束。'}
+];
+const STROKE_HARD_STEPS=[
+  {p:5,txt:'开始撸，跟上节拍，不许停。'},
+  {p:18,txt:'快一点，用力撸，喘给主人听。'},
+  {p:34,txt:'冲刺，更快更用力。'},
+  {p:48,txt:'停！捏住根部，深呼吸三次。'},
+  {p:60,txt:'继续撸，这次要更接近边缘。'},
+  {p:76,txt:'全力撸，冲上边缘，夹着别射。'},
+  {p:90,txt:'边缘！双手举过头顶，抖着等，不许射。'},
+  {p:96,txt:'再慢撸几下就停，等到倒计时结束。'}
+];
+const STROKE_CLIMAX_STEPS=[
+  {p:6,txt:'最后一段。跟着节拍撸，先别冲太快。'},
+  {p:22,txt:'快一点，加速，整根套弄。'},
+  {p:40,txt:'停！捏住根部，深呼吸三次。'},
+  {p:55,txt:'继续撸，往边缘冲。'},
+  {p:74,txt:'冲刺，更快更用力。'},
+  {p:88,txt:'全力撸，看着镜头。'},
+  {p:95,txt:'可以射了。射的时候不许躲开。'}
+];
+function rhythmDur(diff,climax){
+  const hard=S&&S.mode==='hard';
+  let dur=climax?R(52,68):(diff<=1?R(28,36):(diff===2?R(38,48):R(48,60)));
+  if(hard&&(climax||diff>=2))dur+=R(4,10);
+  return dur;
+}
+function buildRhythmStroke(act,climax){
+  const diff=climax?3:clamp(act||2,1,3);
+  const steps=climax?STROKE_CLIMAX_STEPS:(diff<=1?STROKE_EASY_STEPS:(diff===2?STROKE_MID_STEPS:STROKE_HARD_STEPS));
+  const titles={1:'跟着慢节拍撸',2:'跟着节拍撸',3:'跟上快节拍撸'};
+  return {
+    t:climax?'跟着节拍撸，到点再射':titles[diff],
+    dur:rhythmDur(diff,climax),
+    steps:steps,
+    climax:!!climax,
+    strokeRhythm:true,
+    strokeClimax:!!climax,
+    diff:diff,
+    k:climax?'边缘·高潮':'撸管',
+    o:3,s:3+diff,h:2+diff
+  };
+}
+function buildStrokeClimax(){
+  const rounds=[buildRhythmStroke(3,true),Object.assign({},pickFinale(),{diff:3})];
+  return rounds;
+}
+function buildRhythmInsert(act,climax){
+  const diff=climax?3:clamp(act||2,1,3);
+  const steps=climax?RHYTHM_CLIMAX_STEPS:(diff<=1?RHYTHM_EASY_STEPS:(diff===2?RHYTHM_MID_STEPS:RHYTHM_HARD_STEPS));
+  const titles={1:'含着，跟着慢节拍抽插',2:'含着，跟着节拍抽插',3:'含着，跟上快节拍抽插'};
+  return {
+    t:climax?'跟着节拍抽插，到点再射':titles[diff],
+    dur:rhythmDur(diff,climax),
+    steps:steps,
+    climax:!!climax,
+    insertRhythm:true,
+    insertClimax:!!climax,
+    diff:diff,
+    k:'假鸡巴',
+    needInsert:true,
+    o:3,s:3+diff,h:2+diff
+  };
+}
 function buildScenarioInsertOnly(sc,act){
-  const hard=S.mode==='hard';
-  const all=buildInsertTasks();
-  const n=hard?(act>=3?R(2,3):R(1,2)):R(1,2);
-  const slice=all.slice(0,Math.min(n,all.length)).map(function(t){return bindToyText(t,sc);});
-  if(slice.length)return slice;
-  const fb=reuseScenarioPool('instruct',sc,act,n,function(t){return t.k==='假鸡巴'||t.k==='肛门';});
+  const target=clamp(act||1,1,3);
+  const pool=(DATA.insert||[]).filter(kinkAllowed);
+  let band=pool.filter(function(t){return insertStepDiff(t.step)===target;});
+  if(!band.length)band=pool.filter(function(t){return Math.abs(insertStepDiff(t.step)-target)<=1;});
+  const n=(target>=3&&S.mode==='hard')?2:1;
+  const bag=band.slice();
+  const picked=[];
+  while(picked.length<n&&bag.length){
+    const i=Math.floor(Math.random()*bag.length);
+    const src=bag.splice(i,1)[0];
+    picked.push(Object.assign({},src,{diff:insertStepDiff(src.step)}));
+  }
+  if(picked.length)return picked.map(function(t){return bindToyText(t,sc);});
+  const fb=reuseScenarioPool('instruct',sc,target,1,function(t){return t.k==='假鸡巴'||t.k==='肛门';});
   return fb.length?fb.map(function(t){return bindToyText(t,sc);}):[];
 }
 function buildScenarioInsertJerk(sc,act){
-  const hard=S.mode==='hard';
-  const prepPool=[
-    {t:'润滑后把 {toy} 缓缓推进后面，坐稳或跪稳含住。先别撸前面，保持插入十秒，说「后面先吃饱」。',k:'假鸡巴',needInsert:true,o:3,s:5,h:4},
-    {t:'把 {toy} 插进后面到底座（或能承受的深度），撅给镜头看。保持插入，准备听节拍撸前面。',k:'假鸡巴',needInsert:true,o:3,s:5,h:4},
-    {t:'正面先慢撸十下停手，立刻转身后插：{toy} 进出十几下后停在里面，说「前后一起听令」。',k:'假鸡巴',needInsert:true,o:3,s:6,h:5}
-  ];
-  const prep=bindToyText(Object.assign({},pick(prepPool)),sc);
-  const jerk=pickJerk(false);
-  jerk.insertWhile=true;
-  jerk.t='含着后面的玩具，跟着节拍撸前面';
-  if(hard&&act>=3)jerk.dur=Math.max(jerk.dur,R(36,50));
-  return [prep,jerk];
+  return [buildRhythmInsert(act,false)];
 }
 function buildInsertClimax(sc){
   const prep=bindToyText({
     papa:'最后冲刺。',
-    t:'把 {toy} 插稳含住，前面握住鸡巴。听令：边插着边撸，倒计时结束才许射。射的时候后面不许自己拔出来。',
+    t:'把 {toy} 插稳含住。这一段跟着节拍抽插，前面先别撸。倒计时最后才许射，射的时候后面不许自己拔出来。',
     k:'假鸡巴',
     needInsert:true,
+    diff:3,
     o:3,s:6,h:5
   },sc);
-  const jerk=pickJerk(true);
-  jerk.insertClimax=true;
-  jerk.t='边插边撸，到点再射';
-  return [prep,jerk];
+  return [prep,buildRhythmInsert(3,true)];
 }
 function pickFinale(){
   return {...pick(DATA.finale)};
@@ -393,13 +588,18 @@ function taskNeedOk(task,sc){
       if(!scenarioCondOn(sc,task.needCond[i]))return false;
     }
   }
+  if(task.needKinks&&task.needKinks.length){
+    for(let i=0;i<task.needKinks.length;i++){
+      if(!kinkOn(task.needKinks[i]))return false;
+    }
+  }
   if(task.k){
     const inc=sc.incompatible||[];
     if(inc.indexOf(task.k)>=0)return false;
     if(task.k==='马桶'&&!scenarioCondOn(sc,'toilet'))return false;
     if((task.k==='尿液'||task.k==='饮尿')&&!scenarioCondOn(sc,'wet'))return false;
-    if(task.k==='夹子'&&!scenarioCondOn(sc,'clips'))return false;
-    if(task.k==='身体涂写'&&!scenarioCondOn(sc,'writing'))return false;
+    if(STATIONERY_KINKS.indexOf(task.k)>=0&&!stationeryOn(sc))return false;
+    if(GLUE_KINKS.indexOf(task.k)>=0&&!glueOn(sc))return false;
     if(task.k==='假鸡巴')return scenarioInsertAllowed(sc);
   }
   return kinkAllowed(task);
@@ -426,6 +626,8 @@ function resolveScenario(){
       if(c.default&&Math.random()<0.7)on=true;
     }else if(prefs.conditions&&prefs.conditions[c.id]!==undefined){
       on=!!prefs.conditions[c.id];
+    }else if(c.id==='stationery'&&prefs.conditions&&(prefs.conditions.clips!==undefined||prefs.conditions.writing!==undefined)){
+      on=!!prefs.conditions.clips||!!prefs.conditions.writing;
     }else{
       on=!!c.default;
     }
@@ -467,14 +669,25 @@ function isInsertishTask(task){
   if(task.part==='ass')return true;
   return false;
 }
+function stationeryOn(sc){
+  return scenarioCondOn(sc,'stationery')||scenarioCondOn(sc,'clips')||scenarioCondOn(sc,'writing');
+}
+function glueOn(sc){
+  return scenarioCondOn(sc,'glue');
+}
 /** 勾选后必须上场的条件（插入另有 insert? 专场） */
-const FORCE_CONDS=['clips','toilet','wet','writing'];
+const FORCE_CONDS=['stationery','glue','toilet','wet'];
 function taskMatchesForceCond(t,condId){
-  if(!t)return false;
+  if(!t||t.cross)return false;
   if(t.needCond&&t.needCond.indexOf(condId)>=0)return true;
-  if(condId==='clips')return t.k==='夹子';
+  if(condId==='stationery'){
+    if(STATIONERY_KINKS.indexOf(t.k)>=0)return true;
+    return !!(t.needCond&&(t.needCond.indexOf('clips')>=0||t.needCond.indexOf('writing')>=0));
+  }
+  if(condId==='glue')return GLUE_KINKS.indexOf(t.k)>=0;
   if(condId==='toilet')return t.k==='马桶';
   if(condId==='wet')return t.k==='尿液'||t.k==='饮尿';
+  if(condId==='clips')return t.k==='夹子';
   if(condId==='writing')return t.k==='身体涂写';
   return false;
 }
@@ -491,19 +704,11 @@ function pickForcedCondTask(sc,act,lastPart,usedKeys,condId){
       return taskMatchesForceCond(t,condId);
     });
     if(!pool.length)continue;
-    const scored=pool.map(function(t){
-      let score=Math.random();
-      if(t.act!=null&&act!=null){
-        if(t.act===act)score+=0.35;
-        else if(Math.abs(t.act-act)<=1)score+=0.15;
-      }
-      const key=(t.t||'')+(t.part||'');
-      if(usedKeys&&usedKeys[key])score-=1;
-      return {t:t,score:score,key:key};
-    }).sort(function(a,b){return b.score-a.score;});
-    const choice=scored[0];
-    if(usedKeys)usedKeys[choice.key]=1;
-    return bindToyText(Object.assign({},choice.t),sc);
+    const choice=chooseFromPool(pool,act,usedKeys);
+    if(!choice)continue;
+    const key=(choice.t||'')+(choice.part||'');
+    if(usedKeys)usedKeys[key]=1;
+    return bindToyText(Object.assign({},choice),sc);
   }
   const pools=['instruct','punish','order'];
   for(let pi=0;pi<pools.length;pi++){
@@ -511,6 +716,63 @@ function pickForcedCondTask(sc,act,lastPart,usedKeys,condId){
     if(ts.length)return bindToyText(ts[0],sc);
   }
   return null;
+}
+const CROSS_RULES=[
+  {id:'sock_toilet',ok:function(sc){return kinkOn('袜子')&&scenarioCondOn(sc,'toilet');}},
+  {id:'sock_drink',ok:function(sc){return kinkOn('袜子')&&kinkOn('饮尿')&&scenarioCondOn(sc,'wet');}},
+  {id:'sock_insert',ok:function(sc){return kinkOn('袜子')&&scenarioInsertAllowed(sc);}},
+  {id:'sock_clip',ok:function(sc){return kinkOn('袜子')&&kinkOn('夹子')&&stationeryOn(sc);}},
+  {id:'sock_write',ok:function(sc){return kinkOn('袜子')&&kinkOn('身体涂写')&&stationeryOn(sc);}},
+  {id:'write_toilet',ok:function(sc){return kinkOn('身体涂写')&&stationeryOn(sc)&&scenarioCondOn(sc,'toilet');}},
+  {id:'write_drink',ok:function(sc){return kinkOn('身体涂写')&&stationeryOn(sc)&&kinkOn('饮尿')&&scenarioCondOn(sc,'wet');}},
+  {id:'clip_drink',ok:function(sc){return kinkOn('夹子')&&stationeryOn(sc)&&kinkOn('饮尿')&&scenarioCondOn(sc,'wet');}},
+  {id:'clip_insert',ok:function(sc){return kinkOn('夹子')&&stationeryOn(sc)&&scenarioInsertAllowed(sc);}},
+  {id:'insert_toilet',ok:function(sc){return scenarioInsertAllowed(sc)&&scenarioCondOn(sc,'toilet');}},
+  {id:'insert_drink',ok:function(sc){return scenarioInsertAllowed(sc)&&kinkOn('饮尿')&&scenarioCondOn(sc,'wet');}},
+  {id:'tape_toilet',ok:function(sc){return kinkOn('胶带')&&stationeryOn(sc)&&scenarioCondOn(sc,'toilet');}},
+  {id:'foot_drink',ok:function(sc){return kinkOn('脚')&&kinkOn('饮尿')&&scenarioCondOn(sc,'wet');}}
+];
+const TRIPLE_RULES=[
+  {id:'sock_clip_insert',ok:function(sc){return kinkOn('袜子')&&kinkOn('夹子')&&stationeryOn(sc)&&scenarioInsertAllowed(sc);}},
+  {id:'write_toilet_drink',ok:function(sc){return kinkOn('身体涂写')&&stationeryOn(sc)&&scenarioCondOn(sc,'toilet')&&kinkOn('饮尿')&&scenarioCondOn(sc,'wet');}},
+  {id:'insert_toilet_drink',ok:function(sc){return scenarioInsertAllowed(sc)&&scenarioCondOn(sc,'toilet')&&kinkOn('饮尿')&&scenarioCondOn(sc,'wet');}}
+];
+function isTripleCross(id){
+  for(let i=0;i<TRIPLE_RULES.length;i++){if(TRIPLE_RULES[i].id===id)return true;}
+  return false;
+}
+function injectCrossBeats(beats,sc){
+  const out=beats.slice();
+  const hits=shuffle(CROSS_RULES.filter(function(rule){return rule.ok(sc);})).filter(function(){return Math.random()<0.55;}).slice(0,3);
+  hits.forEach(function(rule,i){
+    const ci=out.indexOf('climax');
+    let at=Math.floor(out.length*(0.42+i*0.12));
+    if(ci>=0)at=Math.min(Math.max(2,at),ci);
+    out.splice(at,0,'cross:'+rule.id);
+  });
+  const triple=shuffle(TRIPLE_RULES.filter(function(rule){return rule.ok(sc);})).filter(function(){return Math.random()<0.55;})[0];
+  if(triple){
+    const ci=out.indexOf('climax');
+    out.splice(ci>=0?ci:out.length,0,'cross:'+triple.id);
+  }
+  return out;
+}
+function pickCrossTask(sc,act,id,usedKeys){
+  const raw=scenarioData();
+  const kinds=['combo','place_task','body'];
+  const pool=[];
+  kinds.forEach(function(kind){
+    ((raw&&raw.beats&&raw.beats[kind])||[]).forEach(function(t){
+      if(t.cross!==id)return;
+      if(!taskNeedOk(t,sc))return;
+      pool.push(t);
+    });
+  });
+  const choice=chooseFromPool(pool,act,usedKeys);
+  if(!choice)return null;
+  const key=(choice.t||'')+(choice.part||'');
+  if(usedKeys)usedKeys[key]=1;
+  return bindToyText(Object.assign({},choice),sc);
 }
 function injectForcedConditionBeats(beats,sc){
   const out=beats.slice();
@@ -531,12 +793,15 @@ function injectForcedConditionBeats(beats,sc){
 }
 function pickScenarioBeat(kind,sc,act,lastPart,usedKeys,preferInsert,preferCond){
   const raw=scenarioData();
-  const pool=((raw&&raw.beats&&raw.beats[kind])||[]).filter(function(t){
+  let pool=((raw&&raw.beats&&raw.beats[kind])||[]).filter(function(t){
     if(t.loc&&t.loc.length&&t.loc.indexOf(sc.id)<0)return false;
-    if(t.hi&&act<2)return false;
     if(lastPart&&t.part&&t.part===lastPart)return false;
     return taskNeedOk(t,sc);
   });
+  if(kind==='arrive'){
+    const local=pool.filter(function(t){return t.loc&&t.loc.indexOf(sc.id)>=0;});
+    if(local.length)pool=local;
+  }
   if(!pool.length)return null;
   let use=pool;
   if(preferCond){
@@ -550,33 +815,23 @@ function pickScenarioBeat(kind,sc,act,lastPart,usedKeys,preferInsert,preferCond)
     const cold=use.filter(function(t){return !isInsertishTask(t);});
     if(cold.length)use=cold;
   }
-  const scored=use.map(function(t,i){
-    let score=Math.random();
-    if(t.act!=null&&act!=null){
-      if(t.act===act)score+=0.35;
-      else if(Math.abs(t.act-act)<=1)score+=0.15;
-    }
-    if(preferInsert===true&&isInsertishTask(t))score+=0.5;
-    if(preferInsert===false&&!isInsertishTask(t))score+=0.35;
-    if(preferCond&&taskMatchesForceCond(t,preferCond))score+=0.85;
-    const key=(t.t||'')+(t.part||'');
-    if(usedKeys&&usedKeys[key])score-=1;
-    return {t:t,i:i,score:score,key:key};
-  }).sort(function(a,b){return b.score-a.score;});
-  const choice=scored[0];
-  if(usedKeys)usedKeys[choice.key]=1;
-  return bindToyText(Object.assign({},choice.t),sc);
+  const choice=chooseFromPool(use,act,usedKeys);
+  if(!choice)return null;
+  const key=(choice.t||'')+(choice.part||'');
+  if(usedKeys)usedKeys[key]=1;
+  return bindToyText(Object.assign({},choice),sc);
 }
 function reuseScenarioPool(poolKey,sc,act,n,extra){
-  const hard=S&&S.mode==='hard';
   const fn=function(t){
     if(!taskNeedOk(t,sc))return false;
-    if(act<=1&&t.hi)return false;
-    if(act>=3&&!t.hi&&Math.random()<0.35)return false;
     if(extra&&!extra(t))return false;
     return true;
   };
-  return drawPool(poolKey,n||1,fn);
+  const raw=(DATA[poolKey]||[]).filter(fn);
+  const scaled=filterByDiff(raw,act);
+  const allow={};
+  (scaled.length?scaled:raw).forEach(function(t){allow[t.t]=1;});
+  return drawPool(poolKey,n||1,function(t){return fn(t)&&allow[t.t];});
 }
 function makeScenarioStage(type,act,tasks){
   return {type:type,label:stageLabelOf(type),act:(act===undefined?2:act),tasks:tasks||[],idx:0};
@@ -594,20 +849,38 @@ function ensureMemory(){
   }
   return S.memory;
 }
+/** 只有真的放进去才记。外口按压、以及「塞进一根手指」这种松紧描述不算。 */
+function memoryPenetration(task){
+  const txt=String((task&&task.t)||'');
+  const externalOnly=/只按不进|先不进|不许进|不插入|别进/.test(txt)&&!/抽插|推进去|塞进去|插住|吞进去|插稳/.test(txt);
+  let plug=null;
+  if(task&&task.stayPlugEnd)plug=false;
+  else if(task&&task.stayPlugStart)plug=true;
+  else if(!externalOnly&&(/肛塞|塞子/.test(txt)||(task&&task.needToyTags&&task.needToyTags.indexOf('plug')>=0))&&/塞进|塞住|含着|底座贴/.test(txt))plug=true;
+  let inserted=false;
+  if(!externalOnly){
+    if(task&&(task.insertRhythm||task.insertClimax||task.insertWhile))inserted=true;
+    else if(task&&task.needInsert&&/抽插|推进|插入|塞进|插住|吞进|指节|插稳/.test(txt))inserted=true;
+    else if(plug===true)inserted=true;
+  }
+  return {inserted:inserted,plug:plug};
+}
 function updateMemoryFromTask(task,outcome){
   if(!isCall()||!S||!S.scenario||!task)return;
   const m=ensureMemory();
   m.lastOutcome=outcome;
   m.lastKink=task.k||m.lastKink;
   if(task.part)m.lastPart=task.part;
+  if(task.spot)m.spot=task.spot;
   m.lastSnippet=String(task.t||'').slice(0,28);
   const txt=task.t||'';
   if(outcome==='done'){
     m.doneStreak++;
     m.failStreakMem=0;
-    if(isInsertishTask(task)||/插入|推进|塞进|抽插|坐下去/.test(txt))m.inserted=true;
-    if(task.stayPlugStart||/肛塞|塞子|塞住|塞进/.test(txt)||(task.needToyTags&&task.needToyTags.indexOf('plug')>=0))m.plugIn=true;
-    if(task.stayPlugEnd)m.plugIn=false;
+    const pen=memoryPenetration(task);
+    if(pen.inserted)m.inserted=true;
+    if(pen.plug===true)m.plugIn=true;
+    if(pen.plug===false)m.plugIn=false;
     if(/跪|趴|躺|抱头/.test(txt))m.pose=/趴/.test(txt)?'prone':(/躺/.test(txt)?'lie':'kneel');
     const toys=S.scenario.toys||[];
     for(let i=0;i<toys.length;i++){
@@ -624,8 +897,8 @@ function memoryReactLine(outcome){
   const toy=m.activeToy||'玩具';
   if(outcome==='done'){
     const pool=[];
-    if(m.plugIn)pool.push('塞子还在里面吧？别自己拔。','里面含着，继续听。');
-    if(m.inserted)pool.push('后面刚开过，别夹太紧。','扩张过了，待会还用得着。');
+    if(scenarioInsertAllowed(S.scenario)&&m.plugIn)pool.push('塞子还在里面吧？别自己拔。','里面含着，继续听。');
+    if(scenarioInsertAllowed(S.scenario)&&m.inserted)pool.push('后面刚开过，别夹太紧。','扩张过了，待会还用得着。');
     if(m.pose==='kneel')pool.push('跪姿保持，别偷懒坐下去。');
     if(m.pose==='prone')pool.push('趴好的样子不错，记着。');
     if(m.activeToy)pool.push(toy+'先放旁边，等下还要点名。',toy+'用得还可以。');
@@ -636,7 +909,7 @@ function memoryReactLine(outcome){
   }
   const bad=[];
   if(m.failStreakMem>=2)bad.push('又不行？那换轻一点的。','两次做不到，换一条你听得懂的。');
-  if(m.plugIn)bad.push('做不到也别把塞子拔了。');
+  if(scenarioInsertAllowed(S.scenario)&&m.plugIn)bad.push('做不到也别把塞子拔了。');
   if(m.activeToy)bad.push(toy+'先放下，深呼吸。');
   bad.push('做不到？先跪好缓十秒。','行，换简单的——但别以为结束了。','哼。那这条放宽一点。');
   return pick(bad);
@@ -648,27 +921,31 @@ function sceneImprovLine(task){
   const st=S.stages[S.si];
   const act=st?st.act||1:1;
   const pool=[];
-  // 地点
-  if(sc.id==='rental')pool.push('小声。合租房，别让门外听见喘。','门锁着吧？压低声音。');
-  if(sc.id==='uni_restroom')pool.push('隔间外有脚步就停手捂嘴。','公厕里？胆子不小，动作快点。');
-  if(sc.id==='uni_dorm')pool.push('窗帘拉好了吗。门反锁。','宿舍里就你？别太大动静。');
-  if(sc.id==='hotel')pool.push('酒店隔音一般，别叫太浪。','门链扣上了吗。');
-  if(sc.id==='home_bath')pool.push('地砖滑，跪稳。','浴室里回声大，注意音量。');
-  if(sc.id==='home')pool.push('家里就你？那今晚别装乖。');
+  // 人在哪，就说哪。还没进动线时才用整间屋子的提醒
+  if(m.spot){
+    pool.push('人在'+propLabel(m.spot)+'，我看着你。','别离开'+propLabel(m.spot)+'。');
+  }else{
+    if(sc.id==='rental')pool.push('小声。合租房，别让门外听见喘。','门锁着吧？压低声音。');
+    if(sc.id==='uni_restroom')pool.push('隔间外有脚步就停手捂嘴。','公厕里？胆子不小，动作快点。');
+    if(sc.id==='uni_dorm')pool.push('窗帘拉好了吗。门反锁。','宿舍里就你？别太大动静。');
+    if(sc.id==='hotel')pool.push('酒店隔音一般，别叫太浪。','门链扣上了吗。');
+    if(sc.id==='home_bath')pool.push('地砖滑，跪稳。','浴室里回声大，注意音量。');
+    if(sc.id==='home')pool.push('家里就你？那今晚别装乖。');
+  }
   // 玩具
   const toys=sc.toys||[];
   const has=function(tag){return toys.some(function(t){return (t.tags||[]).indexOf(tag)>=0;});};
-  if(has('plug')&&Math.random()<0.55)pool.push('铃铛或塞子在的话，待会要听响。','塞子今晚有出场。');
+  if(scenarioInsertAllowed(sc)&&has('plug')&&Math.random()<0.55)pool.push('铃铛或塞子在的话，待会要听响。','塞子今晚有出场。');
   if(S.stayPluggedForeplay){
     pool.push('铃铛还在响吗。','塞着走，我要听见铃。','别偷偷拔塞子。');
   }
   if(has('vibe')&&Math.random()<0.5)pool.push('跳蛋充好电了吗。','跳蛋待会用得上。');
-  if(has('dildo')&&Math.random()<0.55)pool.push('假鸡巴润滑准备好。','尺寸你自己清楚，别逞强。');
+  if(scenarioInsertAllowed(sc)&&has('dildo')&&Math.random()<0.55)pool.push('假鸡巴润滑准备好。','尺寸你自己清楚，别逞强。');
   if(has('candle')&&Math.random()<0.4)pool.push('蜡烛小心烫，受不了就停。');
   if(has('oral')&&Math.random()<0.4)pool.push('口罩那根，嘴也别闲着。');
   // 记忆残留
-  if(m.plugIn)pool.push('塞着的话，走一步晃一下给我看。');
-  if(m.inserted&&act>=2)pool.push('后面已经湿过了，别装第一次。');
+  if(scenarioInsertAllowed(sc)&&m.plugIn)pool.push('塞着的话，走一步晃一下给我看。');
+  if(scenarioInsertAllowed(sc)&&m.inserted&&act>=2)pool.push('后面已经湿过了，别装第一次。');
   // 幕次
   if(act>=3)pool.push('到后半场了，别散。','越来越深了，撑住。');
   if(task&&task.hi)pool.push('这条偏狠，量力。痛了就安全挂断。');
@@ -713,64 +990,294 @@ function callSpeakTask(task,extra){
 }
 function softRecoveryTask(sc){
   const m=ensureMemory();
-  if(m.plugIn){
-    return bindToyText({t:'先别拔塞子。跪好，双手抱头，深呼吸十下。缓过来再说「主人，还能继续」。',k:'羞耻姿势',o:1,s:2,h:1},sc);
+  const where=m.spot?('人留在'+propLabel(m.spot)+'。'):'';
+  const plugged=m.plugIn&&S&&S.scenario&&scenarioInsertAllowed(S.scenario);
+  const t=plugged
+    ?{t:where+'先别拔塞子。跪好，双手抱头，深呼吸十下。缓过来再说「主人，还能继续」。',k:'羞耻姿势',o:1,s:2,h:1,spot:m.spot||null}
+    :{t:where+'先停手。跪好，双手放膝盖上，深呼吸十次。缓过来抬头说「主人，狗还听令」。',k:'羞耻姿势',o:1,s:2,h:1,spot:m.spot||null};
+  return bindToyText(t,sc);
+}
+
+/** 一对一：房间动线。流程按地点里真实有的位置往下走，而不是所有房间共用一条弧线。 */
+const PROP_LABEL={
+  door:'门口',desk:'桌边',bed:'床上',mirror:'镜前',
+  toilet:'马桶边',shower:'淋浴区',floor:'地上',
+  sofa:'沙发',stall:'隔间',sink:'洗手台'
+};
+function propLabel(id){return PROP_LABEL[id]||id;}
+function moveLine(id){
+  const lines={
+    door:'到门口，确认锁好。',
+    desk:'走到桌边，手撑住桌沿。',
+    bed:'到床上去。',
+    mirror:'转到镜子前。',
+    toilet:'走到马桶边。',
+    shower:'进淋浴区。',
+    floor:'下来，到地上。',
+    sofa:'到沙发上。',
+    stall:'退回隔间，门扣好。',
+    sink:'到洗手台前。'
+  };
+  return lines[id]||('换到'+propLabel(id)+'。');
+}
+function anchorToSpot(task,prop,enter,first){
+  const t=Object.assign({},task);
+  t.spot=prop;
+  if(enter){
+    const lead=first?('先从'+propLabel(prop)+'开始。'):moveLine(prop);
+    const mark={door:'门',desk:'桌',bed:'床',mirror:'镜',toilet:'马桶',shower:'淋浴',floor:'地',sofa:'沙发',stall:'隔',sink:'洗手'}[prop];
+    const opensHere=!!(mark&&(t.t||'').slice(0,10).indexOf(mark)>=0);
+    const key=lead.replace(/[。，]/g,'').slice(0,4);
+    if(!opensHere&&(t.t||'').indexOf(key)<0)t.t=lead+t.t;
+  }else if(t.spotFallback&&(t.t||'').indexOf(propLabel(prop))<0){
+    t.t='人还在'+propLabel(prop)+'，别换地方。'+t.t;
   }
-  return bindToyText({t:'先停手。跪好，双手放膝盖上，深呼吸十次。缓过来抬头说「主人，狗还听令」。',k:'羞耻姿势',o:1,s:2,h:1},sc);
+  return t;
+}
+function condsAtProp(sc,prop){
+  const ids=[];
+  if(prop==='desk'){
+    if(scenarioCondOn(sc,'stationery'))ids.push('stationery');
+    if(scenarioCondOn(sc,'glue'))ids.push('glue');
+  }
+  if(prop==='toilet'){
+    if(scenarioCondOn(sc,'toilet'))ids.push('toilet');
+    if(scenarioCondOn(sc,'wet')&&(sc.props||[]).indexOf('shower')<0)ids.push('wet');
+  }
+  if(prop==='shower'&&scenarioCondOn(sc,'wet'))ids.push('wet');
+  return ids;
+}
+function condAtStation(sc,prop,forcedDone){
+  const ids=condsAtProp(sc,prop);
+  for(let i=0;i<ids.length;i++){
+    if(!forcedDone[ids[i]])return ids[i];
+  }
+  return null;
+}
+function stationForCond(id,route){
+  route=route||[];
+  if((id==='stationery'||id==='glue')&&route.indexOf('desk')>=0)return 'desk';
+  if(id==='toilet'&&route.indexOf('toilet')>=0)return 'toilet';
+  if(id==='wet'){
+    if(route.indexOf('shower')>=0)return 'shower';
+    if(route.indexOf('toilet')>=0)return 'toilet';
+  }
+  return null;
+}
+function mainSurface(route){
+  const hold=['bed','stall','sofa','floor','shower'];
+  for(let i=route.length-1;i>=0;i--){
+    if(hold.indexOf(route[i])>=0)return route[i];
+  }
+  return route.length?route[route.length-1]:'floor';
+}
+function roomRoute(sc){
+  if(!sc)return [];
+  const raw=scenarioData();
+  const loc=((raw&&raw.locations)||[]).find(function(l){return l.id===sc.id;});
+  const props=sc.props||[];
+  let route=(loc&&loc.route&&loc.route.length)?loc.route.slice():[];
+  route=route.filter(function(p){return props.indexOf(p)>=0;});
+  function ensure(prop){
+    if(!prop||props.indexOf(prop)<0||route.indexOf(prop)>=0)return;
+    const at=route.length?Math.max(1,route.length-1):0;
+    route.splice(at,0,prop);
+  }
+  if(scenarioCondOn(sc,'toilet'))ensure('toilet');
+  if(scenarioCondOn(sc,'wet'))ensure(props.indexOf('shower')>=0?'shower':'toilet');
+  if(scenarioCondOn(sc,'stationery')||scenarioCondOn(sc,'glue'))ensure('desk');
+  return route;
+}
+function buildRoomBeats(sc,route){
+  const hard=S.mode==='hard';
+  const main=mainSurface(route);
+  const beats=[];
+  if(!skipIntroSel)beats.push('rules');
+  beats.push('arrive');
+  function pushStop(prop,stays){
+    beats.push('spot:'+prop);
+    for(let s=0;s<stays;s++)beats.push('stay:'+prop);
+  }
+  const firstMain=route.indexOf(main);
+  route.forEach(function(prop,i){
+    const lastMain=prop===main&&i===route.lastIndexOf(prop);
+    let extra=0;
+    if(hard)extra=lastMain?3:2;
+    else if(lastMain)extra=1;
+    const stays=Math.max(0,condsAtProp(sc,prop).length-1)+extra;
+    pushStop(prop,stays);
+    // 第一次在落点做完，就插一段节奏，不堆到最后
+    if(i===firstMain)beats.push('jerk');
+  });
+  // 困难再走一圈；两种模式都按路线补场，简单约 20 场，困难约 45 场
+  const insertOn=scenarioInsertAllowed(sc);
+  function projected(list){
+    if(!insertOn)return list.length;
+    let n=0;
+    list.forEach(function(b){n+=b==='jerk'?2:1;});
+    return n;
+  }
+  const tail=[];
+  if(hard){
+    const mid=Math.max(0,Math.floor((route.length-1)/2));
+    route.forEach(function(prop,i){
+      pushStop(prop,1);
+      if(i===mid)beats.push('jerk');
+    });
+    const risk=route.indexOf('stall')>=0?'stall':(route.indexOf('door')>=0?'door':main);
+    tail.push('pen:'+risk);
+    if(risk!==main)tail.push('spot:'+main);
+    tail.push('jerk');
+  }
+  tail.push('climax','aftercare');
+  const target=hard?45:20;
+  let cursor=0;
+  while(projected(beats.concat(tail))<target&&cursor<60){
+    beats.push('spot:'+route[cursor%route.length]);
+    cursor++;
+  }
+  tail.forEach(function(b){beats.push(b);});
+  FORCE_CONDS.forEach(function(id){
+    if(!scenarioCondOn(sc,id)||stationForCond(id,route))return;
+    const jerkAt=beats.indexOf('jerk');
+    const at=jerkAt>=0?jerkAt:beats.indexOf('climax');
+    beats.splice(at>=0?at:beats.length,0,'force:'+id);
+  });
+  return beats;
+}
+function pickSpotTask(sc,prop,act,lastPart,usedKeys,preferInsert,preferCond){
+  function gather(condOnly){
+    const raw=scenarioData();
+    const pool=[];
+    ['place_task','combo'].forEach(function(kind){
+      ((raw&&raw.beats&&raw.beats[kind])||[]).forEach(function(t){
+        if(!(t.need&&t.need.indexOf(prop)>=0))return;
+        if(t.loc&&t.loc.length&&t.loc.indexOf(sc.id)<0)return;
+        if(lastPart&&t.part&&t.part===lastPart)return;
+        if(!taskNeedOk(t,sc))return;
+        if(condOnly&&preferCond&&!taskMatchesForceCond(t,preferCond))return;
+        pool.push(t);
+      });
+    });
+    return pool;
+  }
+  function notUsed(t){
+    const key=(t.t||'')+(t.part||'');
+    return !(usedKeys&&usedKeys[key]);
+  }
+  let pool=preferCond?gather(true).filter(notUsed):[];
+  if(!pool.length)pool=gather(false).filter(notUsed);
+  if(preferInsert===true){
+    const hot=pool.filter(isInsertishTask);
+    if(hot.length){
+      const shallow=Math.min.apply(null,hot.map(function(t){return taskDiff(t);}));
+      pool=hot.filter(function(t){return taskDiff(t)===shallow;});
+    }
+  }else if(preferInsert===false){
+    const cold=pool.filter(function(t){return !isInsertishTask(t);});
+    if(cold.length)pool=cold;
+  }
+  const choice=chooseFromPool(pool,act,usedKeys);
+  if(choice){
+    const key=(choice.t||'')+(choice.part||'');
+    if(usedKeys)usedKeys[key]=1;
+    return bindToyText(Object.assign({},choice),sc);
+  }
+  const body=pickScenarioBeat('body',sc,act,lastPart,usedKeys,preferInsert===true?true:(preferInsert===false?false:null),preferCond);
+  if(!body)return null;
+  body.spotFallback=true;
+  return body;
 }
 
 function buildScenarioSession(sc){
   const raw=scenarioData();
   const hard=S.mode==='hard';
-  const arcKey=hard?'hard':'easy';
-  let beats=(raw&&raw.arcs&&raw.arcs[arcKey])?raw.arcs[arcKey].slice():null;
-  if(!beats||!beats.length){
-    return buildCallScheduleLegacy().map(function(s){return makeStage(s.type,s.act);});
+  const room=roomRoute(sc);
+  const useRoom=room.length>0;
+  let beats;
+  if(useRoom){
+    sc.route=room.slice();
+    sc.mainSpot=mainSurface(room);
+    beats=buildRoomBeats(sc,room);
+  }else{
+    const arcKey=hard?'hard':'easy';
+    beats=(raw&&raw.arcs&&raw.arcs[arcKey])?raw.arcs[arcKey].slice():null;
+    if(!beats||!beats.length){
+      return buildCallScheduleLegacy().map(function(s){return makeStage(s.type,s.act);});
+    }
+    if(skipIntroSel)beats=beats.filter(function(b){return b!=='rules';});
   }
-  if(skipIntroSel)beats=beats.filter(function(b){return b!=='rules';});
   const wantInsert=scenarioInsertAllowed(sc);
   S.stayPluggedForeplay=false;
-  // 开了插入：中段只插 / 插+撸混搭，收束改成边插边撸射；body 交替抽后庭
+  // 开了插入：跟节拍的环节改成抽插，并按出现顺序从浅到深
+  // 节奏穿在动线里，插在哪段，抽插准备就跟在哪段前面
   if(wantInsert){
     beats=beats.filter(function(b){
       return b!=='insert?'&&b!=='insert_only'&&b!=='insert_jerk'&&b!=='bell_plug_in';
     });
-    const firstJerk=beats.indexOf('jerk');
-    const ci=beats.indexOf('climax');
-    if(firstJerk>=0){
-      beats.splice(firstJerk+1,0,'insert_only','body','insert_jerk');
-    }else if(ci>=0){
-      beats.splice(ci,0,'insert_only','insert_jerk');
-    }else{
-      beats.push('insert_only','insert_jerk');
-    }
-    // 后半再混一次插+撸（困难）
-    if(hard&&ci>=0){
-      const ci2=beats.indexOf('climax');
-      if(ci2>=0)beats.splice(ci2,0,'insert_jerk');
-    }
-    let bodySeen=0;
-    beats=beats.map(function(b){
-      if(b!=='body')return b;
-      bodySeen++;
-      if(bodySeen%2===0)return 'insert_body';
-      return b;
+    beats=beats.map(function(b){return b==='jerk'?'insert_rhythm':b;});
+    const withPrep=[];
+    beats.forEach(function(b){
+      if(b==='insert_rhythm')withPrep.push('insert_only');
+      withPrep.push(b);
     });
-    // 铃铛肛塞：约六成几率前戏全程含着
+    beats=withPrep;
+    if(!useRoom){
+      const firstR=beats.indexOf('insert_rhythm');
+      if(firstR<0||firstR>=Math.floor(beats.length*0.32)){
+        const ci=beats.indexOf('climax');
+        let at=Math.max(beats[0]==='rules'?3:2,Math.floor(beats.length*0.18));
+        if(ci>=0)at=Math.min(at,ci);
+        beats.splice(at,0,'insert_only','insert_rhythm');
+      }
+      let bodySeen=0;
+      beats=beats.map(function(b){
+        if(b!=='body')return b;
+        bodySeen++;
+        if(bodySeen%2===0)return 'insert_body';
+        return b;
+      });
+    }
     if(scenarioHasBellPlug(sc)&&Math.random()<0.62){
       S.stayPluggedForeplay=true;
-      const ai=beats.indexOf('arrive');
-      const at=ai>=0?ai+1:(beats[0]==='rules'?2:1);
-      beats.splice(Math.min(at,beats.length),0,'bell_plug_in');
+      let at;
+      if(useRoom&&sc.mainSpot){
+        const spotAt=beats.indexOf('spot:'+sc.mainSpot);
+        at=spotAt>=0?spotAt+1:(beats.indexOf('arrive')+1);
+      }else{
+        const ai=beats.indexOf('arrive');
+        at=ai>=0?ai+1:(beats[0]==='rules'?2:1);
+      }
+      beats.splice(Math.min(Math.max(at,0),beats.length),0,'bell_plug_in');
+    }
+  }else if(!useRoom){
+    // 不插入：跟节拍撸管同样从入门排到高强度
+    const firstJ=beats.indexOf('jerk');
+    if(firstJ<0||firstJ>=Math.floor(beats.length*0.32)){
+      const ci=beats.indexOf('climax');
+      let at=Math.max(beats[0]==='rules'?3:2,Math.floor(beats.length*0.18));
+      if(ci>=0)at=Math.min(at,ci);
+      beats.splice(at,0,'jerk');
     }
   }
-  // 勾选的马桶/夹子/尿液/涂写：各插入至少一场，保证用上
-  beats=injectForcedConditionBeats(beats,sc);
+  if(!useRoom){
+    // 勾选的马桶/文具/胶水/尿液：各插入至少一场，保证用上
+    beats=injectForcedConditionBeats(beats,sc);
+    // 两个条件都开时，约一半场次再插一条复合
+    beats=injectCrossBeats(beats,sc);
+  }
   const stages=[];
   const usedKeys={};
   let lastPart=null;
   let beatAct=1;
   let frontN=0,insertN=0;
+  let rhythmSeen=0;
+  let roomSpot=null;
+  let spotCursor=0;
+  const spotTotal=beats.filter(function(b){return b.indexOf('spot:')===0;}).length;
+  const rhythmTotal=beats.filter(function(b){
+    return wantInsert?(b==='insert_rhythm'||b==='insert_jerk'):b==='jerk';
+  }).length;
   const forcedDone={};
   function bumpAct(i,total){
     if(total<=4)return i<=1?1:2;
@@ -792,74 +1299,141 @@ function buildScenarioSession(sc){
       preferInsert=S.stayPluggedForeplay?false:true;
     }
     beatAct=bumpAct(i,beats.length);
+    if(String(kind).indexOf('cross:')===0){
+      const crossId=kind.slice(6);
+      const task=pickCrossTask(sc,isTripleCross(crossId)?3:beatAct,crossId,usedKeys);
+      if(task){
+        if(task.part)lastPart=task.part;
+        stages.push(makeScenarioStage('combo',beatAct,[task]));
+      }
+      continue;
+    }
     if(String(kind).indexOf('force:')===0){
       const condId=kind.slice(6);
       if(forcedDone[condId])continue;
-      const task=pickForcedCondTask(sc,beatAct,lastPart,usedKeys,condId);
+      let task=pickForcedCondTask(sc,beatAct,lastPart,usedKeys,condId);
       if(task){
+        if(useRoom){
+          const prop=stationForCond(condId,sc.route||[])||sc.mainSpot||roomSpot;
+          if(prop){
+            task=anchorToSpot(task,prop,roomSpot!==prop,!roomSpot);
+            roomSpot=prop;
+          }
+        }
         if(task.part)lastPart=task.part;
         markForced(task);
         if(isInsertishTask(task))insertN++;else frontN++;
         const stType=(condId==='toilet'||condId==='wet')?'place_task':'combo';
-        stages.push(makeScenarioStage(stType,beatAct,[withStayPlugNote(task)]));
+        const stg=makeScenarioStage(stType,beatAct,[withStayPlugNote(task)]);
+        if(task.spot){
+          stg.spot=task.spot;
+          stg.spotStep=spotCursor;
+          stg.spotTotal=spotTotal;
+          stg.label=propLabel(task.spot);
+        }
+        stages.push(stg);
       }
+      continue;
+    }
+    if(kind.indexOf('spot:')===0||kind.indexOf('stay:')===0||kind.indexOf('pen:')===0){
+      const isPen=kind.indexOf('pen:')===0;
+      const isSpot=kind.indexOf('spot:')===0;
+      const prop=kind.slice(kind.indexOf(':')+1);
+      if(isSpot)spotCursor++;
+      const first=isSpot&&!roomSpot;
+      const enter=(isSpot||isPen)&&roomSpot!==prop;
+      const preferCond=condAtStation(sc,prop,forcedDone);
+      const insertHere=wantInsert&&beatAct>=2&&!S.stayPluggedForeplay&&prop===sc.mainSpot;
+      let task=null;
+      if(isPen){
+        const ts=reuseScenarioPool('punish',sc,beatAct,1);
+        task=ts.length?bindToyText(ts[0],sc):null;
+      }else{
+        task=pickSpotTask(sc,prop,beatAct,lastPart,usedKeys,insertHere?true:false,preferCond);
+        if(preferCond&&(!task||!taskMatchesForceCond(task,preferCond))){
+          const forced=pickForcedCondTask(sc,beatAct,lastPart,usedKeys,preferCond);
+          const needs=forced&&forced.need||[];
+          if(forced&&(!needs.length||needs.indexOf(prop)>=0))task=forced;
+        }
+      }
+      if(!task)continue;
+      task=anchorToSpot(task,prop,enter,first);
+      roomSpot=prop;
+      if(task.part)lastPart=task.part;
+      markForced(task);
+      if(isInsertishTask(task))insertN++;else frontN++;
+      const stg=makeScenarioStage(isPen?'punish':'place_task',beatAct,[withStayPlugNote(task)]);
+      stg.spot=prop;
+      stg.spotStep=spotCursor;
+      stg.spotTotal=spotTotal;
+      stg.label=isPen?('在'+propLabel(prop)+'受罚'):((enter?'前往':'留在')+propLabel(prop));
+      stages.push(stg);
       continue;
     }
     if(kind==='bell_plug_in'){
       if(!S.stayPluggedForeplay)continue;
-      const task=bellPlugInTask(sc);
-      stages.push(makeScenarioStage('combo',1,[task]));
+      let task=bellPlugInTask(sc);
+      if(useRoom&&sc.mainSpot){
+        task.spot=sc.mainSpot;
+        task.t='人在'+propLabel(sc.mainSpot)+'。'+task.t;
+        roomSpot=sc.mainSpot;
+      }
+      const stg=makeScenarioStage('combo',beatAct,[task]);
+      if(task.spot){
+        stg.spot=task.spot;
+        stg.spotStep=spotCursor;
+        stg.spotTotal=spotTotal;
+        stg.label=propLabel(task.spot)+' · 含上铃铛';
+      }
+      stages.push(stg);
       insertN++;
       continue;
     }
     if(kind==='insert?'||kind==='insert_only'){
       if(!wantInsert)continue;
-      const ts=buildScenarioInsertOnly(sc,beatAct);
+      let prepDiff=clamp(beatAct,1,3);
+      for(let j=i+1;j<beats.length;j++){
+        if(beats[j]==='insert_rhythm'||beats[j]==='insert_jerk'){
+          prepDiff=rhythmDiffByOrder(rhythmSeen,rhythmTotal);
+          break;
+        }
+        if(beats[j]==='insert_only')break;
+      }
+      const ts=buildScenarioInsertOnly(sc,prepDiff);
       if(S.stayPluggedForeplay){
         ts.unshift(bellPlugOutTask(sc));
         S.stayPluggedForeplay=false;
       }
       if(ts.length){
-        stages.push(makeScenarioStage('insert',Math.max(2,beatAct),ts));
+        const prepStage=makeScenarioStage('insert',prepDiff,ts);
+        prepStage.label='后庭插入 · '+diffLabel(prepDiff);
+        stages.push(prepStage);
         insertN+=ts.length;
       }
       continue;
     }
-    if(kind==='insert_jerk'){
+    if(kind==='insert_jerk'||kind==='insert_rhythm'){
       if(!wantInsert)continue;
-      const ts=buildScenarioInsertJerk(sc,beatAct);
+      const d=rhythmDiffByOrder(rhythmSeen,rhythmTotal);
+      rhythmSeen++;
+      const rounds=[buildRhythmInsert(d,false)];
       if(S.stayPluggedForeplay){
-        ts.unshift(bellPlugOutTask(sc));
+        stages.push(makeScenarioStage('insert',d,[bellPlugOutTask(sc)]));
         S.stayPluggedForeplay=false;
       }
-      if(ts.length>=2){
-        stages.push(makeScenarioStage('insert',Math.max(2,beatAct),[ts[0]]));
-        if(ts.length>=3){
-          // unshift made [out, prep, jerk]
-          stages.push(makeScenarioStage('insert',Math.max(2,beatAct),[ts[1]]));
-          stages.push(makeScenarioStage('jerk',Math.max(2,beatAct),[ts[2]]));
-        }else{
-          stages.push(makeScenarioStage('jerk',Math.max(2,beatAct),[ts[1]]));
-        }
-        insertN+=ts.length;
-      }else if(ts.length){
-        stages.push(makeScenarioStage('insert',Math.max(2,beatAct),ts));
-        insertN+=ts.length;
-      }
+      const stg=makeScenarioStage('jerk',d,rounds);
+      stg.label='跟节奏插入 · '+diffLabel(d);
+      stages.push(stg);
+      insertN+=rounds.length;
       continue;
     }
     if(kind==='jerk'){
-      const n=hard?R(1,2):1;
-      const rounds=[];
-      for(let j=0;j<n;j++){
-        const jk=pickJerk(false);
-        if(S.stayPluggedForeplay){
-          jk.insertWhile=true;
-          jk.t='含着铃铛肛塞，跟着节拍撸前面';
-        }
-        rounds.push(jk);
-      }
-      stages.push(makeScenarioStage('jerk',beatAct,rounds));
+      const d=rhythmDiffByOrder(rhythmSeen,rhythmTotal);
+      rhythmSeen++;
+      const rounds=[buildRhythmStroke(d,false)];
+      const stg=makeScenarioStage('jerk',d,rounds);
+      stg.label='跟节奏撸 · '+diffLabel(d);
+      stages.push(stg);
       continue;
     }
     if(kind==='climax'){
@@ -867,12 +1441,16 @@ function buildScenarioSession(sc){
         const ts=buildInsertClimax(sc);
         if(ts.length>=2){
           stages.push(makeScenarioStage('insert',4,[ts[0]]));
-          stages.push(makeScenarioStage('climax',4,[ts[1]]));
+          const end=makeScenarioStage('climax',3,[ts[1]]);
+          end.label='高潮收束 · 跟节奏插入';
+          stages.push(end);
         }else{
-          stages.push(makeScenarioStage('climax',4,ts.length?ts:buildTasks('climax',4)));
+          stages.push(makeScenarioStage('climax',3,ts.length?ts:buildStrokeClimax()));
         }
       }else{
-        stages.push(makeScenarioStage('climax',4,buildTasks('climax',4)));
+        const end=makeScenarioStage('climax',3,buildStrokeClimax());
+        end.label='高潮收束 · 跟节奏撸';
+        stages.push(end);
       }
       continue;
     }
@@ -956,13 +1534,28 @@ function buildScenarioSession(sc){
       if(ts.length>=2){
         stages.push(makeScenarioStage('insert',4,[ts[0]]));
         stages.push(makeScenarioStage('climax',4,[ts[1]]));
-      }else stages.push(makeScenarioStage('climax',4,buildTasks('climax',4)));
+      }else stages.push(makeScenarioStage('climax',3,buildStrokeClimax()));
     }else{
-      stages.push(makeScenarioStage('climax',4,buildTasks('climax',4)));
+      const end=makeScenarioStage('climax',3,buildStrokeClimax());
+      end.label='高潮收束 · 跟节奏撸';
+      stages.push(end);
     }
   }
   if(!stages.some(function(s){return s.type==='aftercare';})){
     stages.push(makeScenarioStage('aftercare',4,drawPool('aftercare',3)));
+  }
+  if(useRoom&&sc.mainSpot){
+    const lab=propLabel(sc.mainSpot);
+    stages.forEach(function(s){
+      if(s.spot)return;
+      if(s.type!=='jerk'&&s.type!=='climax'&&s.type!=='insert'&&s.type!=='aftercare')return;
+      s.spot=sc.mainSpot;
+      if(s.type!=='aftercare'){
+        s.spotStep=spotCursor||spotTotal;
+        s.spotTotal=spotTotal;
+      }
+      if(!s.label||s.label.indexOf(lab)!==0)s.label=lab+' · '+(s.label||stageLabelOf(s.type));
+    });
   }
   return stages;
 }
@@ -970,15 +1563,14 @@ function buildScenarioSession(sc){
 function buildCallScheduleLegacy(){
   const hard=S.mode==='hard';
   const stages=[];
-  const trainAlt=kinkOn('体训')?'train':'instruct';
   if(!skipIntroSel)stages.push({type:'intro',act:0});
   stages.push({type:'warmup',act:1});
   stages.push({type:'instruct',act:1});
   stages.push({type:'recite',act:1});
   if(hard)stages.push({type:'instruct',act:1});
-  stages.push({type:trainAlt,act:1});
+  stages.push({type:'instruct',act:1});
   stages.push({type:'instruct',act:2});
-  stages.push({type:trainAlt,act:2});
+  stages.push({type:'instruct',act:2});
   stages.push({type:'instruct',act:2});
   if(hard)stages.push({type:'recite',act:2});
   stages.push({type:'punish',act:2});
@@ -1000,7 +1592,6 @@ function buildSchedule(){
   const hard=S.mode==='hard';
   const stages=[];
   if(!skipIntroSel)stages.push({type:'intro',act:0});
-  const allowTrain=kinkOn('体训');
   function fill(n,act,pool){
     let chatSince=0,prev='';
     for(let i=0;i<n;i++){
@@ -1016,14 +1607,10 @@ function buildSchedule(){
       prev=t;
     }
   }
-  const p1=['instruct','instruct','recite','chat'];
-  if(allowTrain)p1.push('train');
-  else p1.push('instruct');
+  const p1=['instruct','instruct','recite','chat','instruct'];
   if(Math.random()<0.35)p1.push('order');
   fill(R(...CONFIG.ACT1[hard?'hard':'easy']),1,p1);
-  const p2=['instruct','instruct','punish','chat','order'];
-  if(allowTrain){p2.push('train');p2.push('train');}
-  else{p2.push('instruct');p2.push('instruct');}
+  const p2=['instruct','instruct','punish','chat','order','instruct','instruct'];
   if(Math.random()<0.5)p2.push('jerk');
   fill(R(...CONFIG.ACT2[hard?'hard':'easy']),2,p2);
   const p3=['instruct','instruct','punish','punish','order','order','jerk','jerk','chat'];
@@ -1750,7 +2337,7 @@ function renderStage(){
   unlock();
   const st=S.stages[S.si];
   if(isCall()&&S.scenario){
-    setText('stageLabel',S.scenario.label+' · '+hostLabel());
+    setText('stageLabel',S.scenario.label+(st.spot?(' · '+propLabel(st.spot)):' · '+hostLabel()));
   }else{
     setText('stageLabel',isCall()?(hostLabel()+'的通话'):('{host}的调教室'.replace('{host}',hostLabel())));
   }
@@ -1763,7 +2350,12 @@ function renderStage(){
     }
   }
   const sceneBit=(isCall()&&S.scenario)?(S.scenario.label+' · '):'';
-  setText('subLabel',sceneBit+(act>0?'第 '+act+' 幕 · ':'')+'环节 '+(S.si+1)+'/'+S.stages.length+' · '+st.label);
+  if(isCall()&&st.spot){
+    const step=st.spotStep?('第 '+st.spotStep+'/'+st.spotTotal+' 站 · '):'';
+    setText('subLabel',step+st.label+' · 环节 '+(S.si+1)+'/'+S.stages.length);
+  }else{
+    setText('subLabel',sceneBit+(act>0?'第 '+act+' 幕 · ':'')+'环节 '+(S.si+1)+'/'+S.stages.length+' · '+st.label);
+  }
   const sp=$('sessProg');
   if(sp)sp.style.width=((S.si)/(S.stages.length-1)*100)+'%';
   renderStats();
@@ -1783,7 +2375,12 @@ function renderTask(task){
   const sceneTag=(isCall()&&S.scenario&&(st.type==='arrive'||st.type==='body'||st.type==='place_task'||st.type==='combo'))
     ?('📍 '+S.scenario.label+(task.k?(' · '+task.k):''))
     :null;
-  setText('kinktag',task.finale?'🏁 终局指令':(st.type==='intro'?'🎬 引导':(sceneTag||((KINK_ICON[task.k]?KINK_ICON[task.k]+' ':'')+(task.k||st.label||'')))));
+  let tagText=task.finale?'🏁 终局指令':(st.type==='intro'?'🎬 引导':(sceneTag||((KINK_ICON[task.k]?KINK_ICON[task.k]+' ':'')+(task.k||st.label||''))));
+  if(isCall()&&st.act){
+    const shown=(task.diff!=null||task.act!=null||task.hi)?taskDiff(task):clamp(st.act,1,3);
+    tagText+=' · '+diffLabel(shown);
+  }
+  setText('kinktag',tagText);
   setText('nicktag',(isCall()?'通话对象：':'上播选手：')+S.nick);
   setText('prog','任务 '+(st.idx+1)+'/'+st.tasks.length);
   const prog=$('progress');
@@ -1850,13 +2447,27 @@ function startJerk(task){
   $('countdown').hidden=false;
   $('micpanel').hidden=true;
   clearChatTimer();
-  const insertPlay=!!(task.insertClimax||task.insertWhile);
-  $('jerkTitle').textContent=task.insertClimax?'高潮收束 · 边插边撸':(task.climax?'高潮收束 · 倒计时':(task.insertWhile?'插入混搭 · 倒计时':'倒计时撸管'));
-  const openLine=task.insertClimax
-    ?'边插着后面，跟着节拍撸前面，到点再射。'
-    :(task.insertWhile?'含着玩具，跟着节拍撸前面。':'跟着节拍撸动，坚持到倒计时结束。');
+  const rhythm=!!(task.insertRhythm||task.insertClimax);
+  const stroke=!!(task.strokeRhythm||task.strokeClimax);
+  const dLab=diffLabel(task.diff||((task.insertClimax||task.strokeClimax)?3:2));
+  const strokeOpen=task.strokeClimax
+    ?'跟着节拍撸，到点再射。'
+    :(task.diff<=1?'跟着慢节拍撸，先找感觉，不许冲。':(task.diff>=3?'跟上快节拍撸，到边缘就停。':'跟着节拍撸，听口令变速。'));
+  const insertOpen=task.insertClimax
+    ?'跟着节拍抽插，到点再射。射的时候含着，不许自己拔出来。'
+    :(task.diff<=1?'含着，跟着慢节拍抽插。前面不许碰。':(task.diff>=3?'含着，跟上快节拍抽插。前面不许碰。':'含着，跟着节拍抽插。前面不许碰。'));
+  $('jerkTitle').textContent=task.insertClimax
+    ?('高潮收束 · 跟节奏插入 · '+dLab)
+    :(task.strokeClimax
+      ?('高潮收束 · 跟节奏撸 · '+dLab)
+      :(rhythm?('跟节奏插入 · '+dLab):(stroke?('跟节奏撸 · '+dLab):(task.climax?'高潮收束 · 倒计时':'倒计时撸管'))));
+  const openLine=rhythm?insertOpen:(stroke?strokeOpen:'跟着节拍撸动，坚持到倒计时结束。');
   $('tasktext').textContent=openLine;
-  $('kinktag').textContent=task.insertClimax?'🔥 插入·射精':(task.climax?'🔥 边缘·高潮':(insertPlay?'🍆💦 插+撸':'💦 撸管'));
+  $('kinktag').textContent=task.insertClimax
+    ?('🔥 跟节奏插入 · '+dLab)
+    :(task.strokeClimax
+      ?('🔥 跟节奏撸 · '+dLab)
+      :(rhythm?('🍆 跟节奏插入 · '+dLab):(stroke?('💦 跟节奏撸 · '+dLab):(task.climax?'🔥 边缘·高潮':'💦 撸管'))));
   const st=S.stages[S.si];
   $('prog').textContent='第 '+(st.idx+1)+'/'+st.tasks.length+' 段 · '+task.dur+' 秒';
   setBtn('btnA','坚持到结束');
@@ -1943,7 +2554,7 @@ function applyStepToMetro(txt){
     setMetroBpm(R(128,148),'sprint');
     return;
   }
-  if(/快一点|加速|往边缘冲|逼近边缘|冲上边缘|快节奏|使劲|用力撸/.test(t)){
+  if(/快一点|加速|往边缘冲|逼近边缘|冲上边缘|快节奏|使劲|用力撸|用力抽|抽插加快|加快抽|往深处/.test(t)){
     setMetroBpm(R(112,128),'fast');
     return;
   }
@@ -1951,7 +2562,7 @@ function applyStepToMetro(txt){
     setMetroBpm(R(72,90),'slow');
     return;
   }
-  if(/继续|开始撸|保持|进入节奏/.test(t)){
+  if(/继续|开始撸|开始抽|保持|进入节奏|抽插|进出/.test(t)){
     const base=CONFIG.BPM_BASE||[78,112];
     setMetroBpm(R(base[0],base[1]),'mid');
   }
@@ -2094,7 +2705,13 @@ function endJerk(){
   $('btnA').disabled=false;$('btnA').classList.remove('dim');
   applyTask({o:3,s:7,h:6,st:-10});
   S.failStreak=0;S.combo++;S.done++;
-  if(isCall()&&S.scenario)updateMemoryFromTask({t:'撸管',k:'边缘',part:'cock'},'done');
+  if(isCall()&&S.scenario){
+    if(currentJerk&&(currentJerk.insertRhythm||currentJerk.insertClimax||currentJerk.insertWhile)){
+      updateMemoryFromTask({t:'抽插',k:'假鸡巴',part:'ass',needInsert:true},'done');
+    }else{
+      updateMemoryFromTask({t:'撸管',k:'边缘',part:'cock'},'done');
+    }
+  }
   sfx('cheer');dirtyBurst();endComments();
   afterAction();
 }
@@ -2335,7 +2952,7 @@ const EVENT_FX={
   '全场静默':function(){S.silentT=15000;addShame(3);},
   '观众点名':function(){insertTask('recite',1);},
   '连击加码':function(){S.buff=Math.min(3,S.buff+1);},
-  '加练一组':function(){insertTask(kinkOn('体训')?'train':'instruct',1);},
+  '加练一组':function(){insertTask('instruct',1);},
   '拍照时间':function(){addShame(3);S.stats.heat=clamp(S.stats.heat+2,0,100);},
   '不许出声':function(){addShame(2);},
   '弹幕稽查':function(){addShame(2);},
@@ -2494,10 +3111,10 @@ async function showEnding(type){
     const cond=S.scenario.conditions||{};
     const bits=[];
     if(cond.insert)bits.push('插入');
-    if(cond.clips)bits.push('夹子');
+    if(cond.stationery||cond.clips||cond.writing)bits.push('文具');
+    if(cond.glue)bits.push('胶水');
     if(cond.wet)bits.push('尿液');
     if(cond.toilet)bits.push('马桶');
-    if(cond.writing)bits.push('涂写');
     const toyN=(S.scenario.toys&&S.scenario.toys.length)||0;
     if(toyN)bits.push(toyN+'件玩具');
     grid+=statCell('本场场景',S.scenario.label+(bits.length?(' · '+bits.join('/')):''));
@@ -2724,6 +3341,9 @@ function startGame(){
     if(S.scenario){
       const toyN=(S.scenario.toys&&S.scenario.toys.length)||0;
       let tip='本场场景：'+S.scenario.label+(toyN?(' · '+toyN+'件玩具'):'');
+      if(S.scenario.route&&S.scenario.route.length){
+        tip+=' · '+S.scenario.route.map(function(p){return propLabel(p);}).join(' → ');
+      }
       if(S.stayPluggedForeplay)tip+=' · 前戏含铃铛';
       papaToast(tip,3.2);
     }

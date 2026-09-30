@@ -21,10 +21,16 @@
       "default": false
     },
     {
-      "id": "clips",
-      "label": "有夹子",
-      "needsKink": "夹子",
+      "id": "stationery",
+      "label": "文具",
+      "needsKink": ["夹子", "身体涂写", "橡皮筋", "胶带", "直尺"],
       "default": true
+    },
+    {
+      "id": "glue",
+      "label": "胶水",
+      "needsKink": ["胶水", "胶棒"],
+      "default": false
     },
     {
       "id": "wet",
@@ -37,12 +43,6 @@
       "label": "马桶玩法",
       "needsKink": "马桶",
       "default": false
-    },
-    {
-      "id": "writing",
-      "label": "身体涂写",
-      "needsKink": "身体涂写",
-      "default": true
     }
   ],
   "locations": [
@@ -51,6 +51,7 @@
       "label": "大学宿舍",
       "tags": ["indoor", "bed", "privacy_mid"],
       "props": ["bed", "floor", "mirror", "desk", "door", "toilet"],
+      "route": ["door", "desk", "bed", "mirror", "bed"],
       "compat": ["内裤", "龟头责", "睾丸", "羞耻姿势", "身体涂写", "假鸡巴", "夹子", "边缘", "寸止", "雄堕", "袜子", "马桶", "尿液", "饮尿"],
       "incompatible": []
     },
@@ -59,6 +60,7 @@
       "label": "大学公厕",
       "tags": ["toilet", "risk", "privacy_low"],
       "props": ["toilet", "floor", "stall", "sink"],
+      "route": ["stall", "toilet", "sink", "stall"],
       "compat": ["马桶", "尿液", "饮尿", "羞耻姿势", "龟头责", "雄堕", "边缘", "内裤", "假鸡巴", "夹子"],
       "incompatible": []
     },
@@ -67,6 +69,7 @@
       "label": "家里",
       "tags": ["indoor", "bed", "privacy_high"],
       "props": ["bed", "floor", "mirror", "shower", "sofa", "toilet"],
+      "route": ["sofa", "mirror", "bed", "floor", "bed"],
       "compat": ["内裤", "龟头责", "睾丸", "羞耻姿势", "身体涂写", "假鸡巴", "夹子", "尿液", "饮尿", "边缘", "寸止", "雄堕", "脚", "袜子", "马桶"],
       "incompatible": []
     },
@@ -74,7 +77,8 @@
       "id": "hotel",
       "label": "酒店房间",
       "tags": ["indoor", "bed", "privacy_high"],
-      "props": ["bed", "floor", "mirror", "shower", "desk", "toilet"],
+      "props": ["bed", "floor", "mirror", "shower", "desk", "door", "toilet"],
+      "route": ["door", "desk", "mirror", "bed", "shower", "bed"],
       "compat": ["内裤", "龟头责", "睾丸", "羞耻姿势", "身体涂写", "假鸡巴", "夹子", "边缘", "寸止", "雄堕", "肛门", "马桶", "尿液", "饮尿"],
       "incompatible": []
     },
@@ -83,6 +87,7 @@
       "label": "家里浴室",
       "tags": ["wet", "privacy_high"],
       "props": ["shower", "floor", "mirror", "toilet"],
+      "route": ["shower", "mirror", "floor", "shower"],
       "compat": ["尿液", "饮尿", "马桶", "羞耻姿势", "龟头责", "假鸡巴", "边缘", "雄堕", "夹子", "身体涂写"],
       "incompatible": []
     },
@@ -91,6 +96,7 @@
       "label": "合租房间",
       "tags": ["indoor", "risk", "privacy_mid"],
       "props": ["bed", "floor", "door", "desk", "toilet"],
+      "route": ["door", "desk", "bed", "door", "bed"],
       "compat": ["内裤", "龟头责", "羞耻姿势", "身体涂写", "边缘", "寸止", "雄堕", "夹子", "假鸡巴", "马桶", "尿液", "饮尿"],
       "incompatible": []
     }
@@ -171,14 +177,16 @@
       },
       {
         "part": "ass",
-        "act": 2,
+        "act": 1,
+        "diff": 1,
         "k": "肛门",
         "t": "趴下或侧躺，分开臀瓣，用指腹按在后穴入口转圈——只按不进。按满三十秒，说「后门也在排队」。",
         "o": 2, "s": 5, "h": 4
       },
       {
         "part": "ass",
-        "act": 3,
+        "act": 2,
+        "diff": 2,
         "k": "假鸡巴",
         "needInsert": true,
         "t": "润滑后，用 {toy}（没有就用手指）只进一个指节，轻轻抽插十下就退出。展示给镜头，说「扩张预告」。",
@@ -273,8 +281,9 @@
       {
         "part": "skin",
         "act": 2,
+        "diff": 2,
         "k": "身体涂写",
-        "needCond": ["writing"],
+        "needCond": ["stationery"],
         "t": "在小腹或胸口写一个字：「狗」或「公用」。写完用手指点着字念出来。",
         "o": 2, "s": 5, "h": 4
       },
@@ -282,7 +291,7 @@
         "part": "cock",
         "act": 2,
         "k": "夹子",
-        "needCond": ["clips"],
+        "needCond": ["stationery"],
         "t": "把夹子夹在包皮或蛋皮上（能承受的力度），展示十秒，说「玩具位留好了」。受不了就摘掉并点做不到。",
         "o": 3, "s": 5, "h": 4
       },
@@ -300,6 +309,530 @@
         "hi": 1,
         "t": "慢慢撸到边缘就停，捏住根部数五秒，重复三次。第三次停住时说「射精权在主人手里」。",
         "o": 3, "s": 4, "h": 5
+      },
+      {
+        "part": "cock",
+        "act": 2,
+        "diff": 2,
+        "k": "龟头责",
+        "t": "拇指压在马眼上打圈二十下，另一手握住根部不许套弄整根。做完松开，给镜头看有没有流水。",
+        "o": 2, "s": 4, "h": 4
+      },
+      {
+        "part": "balls",
+        "act": 2,
+        "diff": 2,
+        "k": "睾丸",
+        "t": "托住蛋轻轻下拉，保持十秒再松开，重复三组。每组结束说「还在主人手里」。痛了就减轻力道。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "part": "balls",
+        "act": 3,
+        "diff": 3,
+        "k": "睾丸",
+        "hi": 1,
+        "t": "一手固定根部，另一手有节奏地轻拍阴囊十五下，拍完托住展示。不许躲开，也不许射。",
+        "o": 3, "s": 5, "h": 4
+      },
+      {
+        "part": "nipple",
+        "act": 2,
+        "diff": 2,
+        "k": "羞耻姿势",
+        "t": "捏住一边乳头向外拉，另一边用指腹刮，左右交换各十五下。挺胸对着镜头，拉的时候不许缩。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "part": "nipple",
+        "act": 3,
+        "diff": 3,
+        "k": "羞耻姿势",
+        "hi": 1,
+        "t": "两边乳头同时拧住，边拧边慢数到二十。数完仍捏着，把胸口凑近镜头说「上面也是开关」。",
+        "o": 3, "s": 5, "h": 4
+      },
+      {
+        "part": "ass",
+        "act": 3,
+        "diff": 3,
+        "k": "肛门",
+        "hi": 1,
+        "t": "跪趴扒开臀瓣，用两指把入口撑开给镜头看五秒，再松开夹紧，重复五次。不许真正插入，说「洞在等下一道命令」。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "pose",
+        "act": 2,
+        "diff": 2,
+        "k": "羞耻姿势",
+        "t": "跪着把膝盖分到最开，双手撑地塌腰，保持四十秒。腰塌下去了也不许用手碰前面。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "part": "pose",
+        "act": 3,
+        "diff": 3,
+        "k": "羞耻姿势",
+        "hi": 1,
+        "t": "仰卧抱腿，把膝盖拉到胸口两侧，后面入口对着镜头保持三十秒。中间不许放腿，说「这个洞也摊开了」。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "feet",
+        "act": 2,
+        "diff": 2,
+        "k": "脚",
+        "t": "一脚踩在自己大腿上，用脚趾沿着鸡巴杆从上到下刮二十下。刮完把脚心展示给镜头。",
+        "o": 2, "s": 5, "h": 4
+      },
+      {
+        "part": "mouth",
+        "act": 3,
+        "diff": 3,
+        "k": "雄堕",
+        "hi": 1,
+        "t": "含住两根手指抽插二十下，抽的时候看着镜头，口水拉丝了也不许擦。说「嘴先学会吃」。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "band",
+        "act": 1,
+        "diff": 1,
+        "k": "橡皮筋",
+        "needCond": ["stationery"],
+        "t": "拿一根橡皮筋松松套在手腕上，对着镜头弹两下，说「文具先报到」。这一条不要套到鸡巴上。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "part": "band",
+        "act": 1,
+        "diff": 1,
+        "k": "橡皮筋",
+        "needCond": ["stationery"],
+        "t": "橡皮筋在大腿上绕一圈，松紧以能塞进一根手指为准。走两步给镜头看，勒红了就松开。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "part": "band",
+        "act": 2,
+        "diff": 2,
+        "k": "橡皮筋",
+        "needCond": ["stationery"],
+        "t": "橡皮筋松松套在鸡巴根部，要留得进一指的空隙。展示十秒。发麻立刻摘掉，摘完揉开。",
+        "o": 3, "s": 5, "h": 4
+      },
+      {
+        "part": "band",
+        "act": 2,
+        "diff": 2,
+        "k": "橡皮筋",
+        "needCond": ["stationery"],
+        "t": "两根橡皮筋分别松松套在左右大腿根，跪好慢撸二十下。不许把皮筋往上勒紧。",
+        "o": 3, "s": 4, "h": 4
+      },
+      {
+        "part": "band",
+        "act": 3,
+        "diff": 3,
+        "k": "橡皮筋",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "根部松套着橡皮筋，慢撸到边缘立刻停，停的时候不许摘。缓十秒再来一轮，两轮后摘掉揉开。麻了马上摘。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "band",
+        "act": 3,
+        "diff": 3,
+        "k": "橡皮筋",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "很松的橡皮筋套在一侧乳头上。痛或发麻立刻摘。挺胸数到十五再摘掉，用指腹揉热。",
+        "o": 3, "s": 5, "h": 4
+      },
+      {
+        "part": "tape",
+        "act": 1,
+        "diff": 1,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "t": "撕一小条胶带贴在大腿上，十秒后慢慢撕掉，说「贴纸试过了」。撕的时候太痛就停。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "part": "tape",
+        "act": 2,
+        "diff": 2,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "t": "双手在身前用胶带松松缠两圈，留出能自己挣开的余量。保持二十秒再撕开。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "part": "tape",
+        "act": 3,
+        "diff": 3,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "双手用胶带松松固定在身前，不许用手撸，只用腰送或大腿夹着蹭到边缘就停。然后撕掉胶带。",
+        "o": 3, "s": 5, "h": 5
+      },
+      {
+        "part": "ruler",
+        "act": 1,
+        "diff": 1,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "t": "拿直尺在自己手心轻轻拍五下，给镜头看没打红，说「先试力度」。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "part": "ruler",
+        "act": 2,
+        "diff": 2,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "t": "跪好，直尺在大腿内侧轻拍十下，每下能听见声音。不许打出肿痕，痛了就减轻。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "part": "ruler",
+        "act": 3,
+        "diff": 3,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "趴好，直尺轻拍屁股十五下。只许皮肤发红，见肿或破皮立刻停。拍完给镜头看，拍的时候不许撸。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "glue",
+        "act": 1,
+        "diff": 1,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "t": "在手背点一点可水洗白胶，抹开，等它发黏给镜头看，然后用水或湿巾擦掉。只用白胶，不要用 502 或强力胶。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "part": "glue",
+        "act": 2,
+        "diff": 2,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "t": "小腹涂薄薄一层白胶，贴上一小张纸，跪着展示十五秒再慢慢揭下。揭不掉就用水泡软。不要用强力胶。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "glue",
+        "act": 3,
+        "diff": 3,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "hi": 1,
+        "t": "大腿内侧涂薄薄一层白胶，避开龟头和黏膜，贴一张写了「狗」的纸条。慢撸到边缘停住，停完再揭。不舒服立刻冲掉。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "stick",
+        "act": 1,
+        "diff": 1,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "t": "胶棒在手腕涂一条，用手指按一按给镜头看黏性，然后擦掉。只用普通胶棒。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "part": "stick",
+        "act": 2,
+        "diff": 2,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "t": "胶棒在小腹涂开，贴一张便签，字朝向镜头。保持到这句做完再揭掉。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "stick",
+        "act": 3,
+        "diff": 3,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "hi": 1,
+        "t": "胶棒涂在大腿根外侧，贴住写了字的纸条。慢撸到边缘，不许自己揭。停手后再撕掉。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "skin",
+        "act": 1,
+        "diff": 1,
+        "k": "身体涂写",
+        "needCond": ["stationery"],
+        "t": "在手腕内侧写一个很小的「狗」。写完把手腕翻给镜头五秒，之后可以用手掌盖住。",
+        "o": 1, "s": 3, "h": 2
+      },
+      {
+        "part": "skin",
+        "act": 1,
+        "diff": 1,
+        "k": "身体涂写",
+        "needCond": ["stationery"],
+        "t": "在大腿上只画一笔横线，看着镜头说「字还没写完，等主人的下一笔」。笔帽盖回去。",
+        "o": 1, "s": 3, "h": 2
+      },
+      {
+        "part": "skin",
+        "act": 2,
+        "diff": 2,
+        "k": "身体涂写",
+        "needCond": ["stationery"],
+        "t": "在胸口写「自用」。写完用两指点着字，慢慢念两遍，第二遍要更小声。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "skin",
+        "act": 3,
+        "diff": 3,
+        "k": "身体涂写",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "小腹写上「公用」。写完慢撸到边缘立刻停，停住的时候字必须还对着镜头，不许用手挡住。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "skin",
+        "act": 3,
+        "diff": 3,
+        "k": "身体涂写",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "左右大腿内侧各写一个字，凑成「欠操」。写成 M 字开腿展示十五秒，展示时不许夹腿。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "tape",
+        "act": 1,
+        "diff": 1,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "t": "撕一小截胶带，只贴在一边嘴角，嘴要还能张又能呼吸。说完「贴纸狗报到」就撕掉。不要封住整张嘴。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "tape",
+        "act": 1,
+        "diff": 1,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "t": "两条短胶带在一边乳头上贴成一个小叉，十秒后从预留的角揭掉。看着镜头揭。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "tape",
+        "act": 2,
+        "diff": 2,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "t": "纸条上写「狗」，用胶带贴在小腹正中。跪好让字对准镜头二十秒，时间没到不许自己揭。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "tape",
+        "act": 2,
+        "diff": 2,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "t": "胶带在鸡巴根部松松绕一圈，龟头留在外面。展示十秒，再从侧面慢慢撕开。一痛就停。",
+        "o": 3, "s": 5, "h": 4
+      },
+      {
+        "part": "tape",
+        "act": 3,
+        "diff": 3,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "脚踝用胶带松松并拢，留出能自己撕开的角。并着跪，慢撸到边缘立刻停，停完再撕开。",
+        "o": 3, "s": 5, "h": 5
+      },
+      {
+        "part": "tape",
+        "act": 3,
+        "diff": 3,
+        "k": "胶带",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "乳头贴一条胶带，角要留在外面。慢撸十五下，每五下把角揭开一点再贴回去。受不了就整条揭掉。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "ruler",
+        "act": 1,
+        "diff": 1,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "t": "用直尺量鸡巴，从根量到头，把读数报给镜头，说「主人的尺量过了」。这一条只量，不拍。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "ruler",
+        "act": 1,
+        "diff": 1,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "t": "直尺平贴在大腿上当一条界线。食指沿着尺边从膝盖画到腿根，画三遍，画完把尺拿开给镜头看皮肤。",
+        "o": 1, "s": 3, "h": 2
+      },
+      {
+        "part": "ruler",
+        "act": 2,
+        "diff": 2,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "t": "直尺横压在鸡巴上。只许撸尺挡住的那一截以下，撸二十下。二十下之内尺不许拿开。",
+        "o": 3, "s": 5, "h": 4
+      },
+      {
+        "part": "ruler",
+        "act": 2,
+        "diff": 2,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "t": "用直尺把蛋托起来，抬到镜头前停十秒。手抖了就放下，放下后再托一次，说「称过了」。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "ruler",
+        "act": 3,
+        "diff": 3,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "咬住直尺的平面当马嚼子，不咬锋利的边。双手抱头跪二十秒。牙酸或想吐就拿出来。",
+        "o": 3, "s": 6, "h": 3
+      },
+      {
+        "part": "ruler",
+        "act": 3,
+        "diff": 3,
+        "k": "直尺",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "直尺轻拍大腿内侧五下，停住报「还在」，再拍五下。做三轮。见肿或破皮立刻停，拍的时候不许撸。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "glue",
+        "act": 1,
+        "diff": 1,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "t": "指尖点一点可水洗白胶，两指拉开看拉丝，拉三次给镜头。拉完擦掉。不要用 502 或强力胶。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "part": "glue",
+        "act": 1,
+        "diff": 1,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "t": "手心点一滴白胶，握拳十秒再张开，给镜头看黏住的掌纹，然后洗净。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "part": "glue",
+        "act": 2,
+        "diff": 2,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "t": "白胶在一边乳头周围画一个圈，吹一吹。圈还发黏的二十秒里不许摸。到点擦掉。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "glue",
+        "act": 2,
+        "diff": 2,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "t": "食指和中指的指腹涂一点白胶，对贴住，举到镜头前再用力张开。张开后用水把手指冲开。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "part": "glue",
+        "act": 3,
+        "diff": 3,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "hi": 1,
+        "t": "左手食指和中指用白胶黏在一起。只能用右手慢撸到边缘立刻停。停完把黏住的手指泡开。不舒服就提前冲掉。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "glue",
+        "act": 3,
+        "diff": 3,
+        "k": "胶水",
+        "needCond": ["glue"],
+        "hi": 1,
+        "t": "小腹用白胶点三个点，各贴一张小纸当标签。标签还在身上时慢撸到边缘不许揭，停住后再一张张揭下来。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "stick",
+        "act": 1,
+        "diff": 1,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "t": "胶棒在胸口画一个空心圈，圈里留白。对着镜头说「这里还没盖章」，然后擦掉。只用普通胶棒。",
+        "o": 1, "s": 3, "h": 2
+      },
+      {
+        "part": "stick",
+        "act": 1,
+        "diff": 1,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "t": "胶棒在下唇外侧涂一点点，不要进嘴里。用手指按出一枚印，给镜头看清楚再擦掉。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "stick",
+        "act": 2,
+        "diff": 2,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "t": "一边乳头用胶棒涂黏，贴上写了「开关」的小纸条。挺胸十五秒，再从一角揭掉。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "stick",
+        "act": 2,
+        "diff": 2,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "t": "胶棒在大腿内侧涂一条虚线，避开黏膜。食指沿着虚线点到腿根，点十下，点完把线擦掉。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "part": "stick",
+        "act": 3,
+        "diff": 3,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "hi": 1,
+        "t": "两只手心都涂上胶棒，对贴十秒再分开。用这双还发黏的手慢撸到边缘立刻停，停完去洗掉。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "stick",
+        "act": 3,
+        "diff": 3,
+        "k": "胶棒",
+        "needCond": ["glue"],
+        "hi": 1,
+        "t": "锁骨下面用胶棒涂一条，贴上写了「待领」的纸条。纸条还在时抱头跪着数到二十，数完才许揭。",
+        "o": 3, "s": 6, "h": 4
       }
     ],
     "place_task": [
@@ -397,6 +930,84 @@
         "k": "羞耻姿势",
         "t": "背对房门跪好（门已锁），想象门外有人，捂住嘴边缘撸十五下后立刻停，说「不能被发现」。",
         "o": 2, "s": 5, "h": 4
+      },
+      {
+        "need": ["bed"],
+        "act": 1,
+        "diff": 1,
+        "k": "假鸡巴",
+        "needInsert": true,
+        "t": "跪在床沿，把 {toy} 涂上润滑抵在后面入口，只按不进，按满二十秒。说「还没让进」。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "need": ["bed"],
+        "act": 2,
+        "diff": 2,
+        "k": "假鸡巴",
+        "needInsert": true,
+        "t": "趴在床上抬高屁股，把 {toy} 慢慢推进到一半，含住不动数二十秒，再缓缓退出。不许碰前面。",
+        "o": 3, "s": 5, "h": 4
+      },
+      {
+        "need": ["bed"],
+        "act": 3,
+        "diff": 3,
+        "k": "假鸡巴",
+        "needInsert": true,
+        "hi": 1,
+        "t": "趴在床上，自己把 {toy} 抽插三十下：前十下慢，中间十下跟上节拍，后十下加快。不许射，也不许用手撸前面。",
+        "o": 3, "s": 6, "h": 6
+      },
+      {
+        "need": ["floor"],
+        "act": 3,
+        "diff": 3,
+        "k": "羞耻姿势",
+        "hi": 1,
+        "t": "跪在地上双手抱头，只用腰小幅前后送三十下，不许用手碰鸡巴。送到发酸也要保持跪姿。",
+        "o": 3, "s": 5, "h": 5
+      },
+      {
+        "need": ["mirror"],
+        "act": 1,
+        "diff": 1,
+        "k": "羞耻姿势",
+        "t": "站到镜子前，只看自己的眼睛，报一次现在的硬度和呼吸。双手放在身侧，不许撸。",
+        "o": 1, "s": 3, "h": 2
+      },
+      {
+        "need": ["mirror"],
+        "act": 3,
+        "diff": 3,
+        "k": "羞耻姿势",
+        "hi": 1,
+        "t": "对着镜子分开腿，看着自己的脸慢撸到边缘立刻停，停住时说「还不能射」。重复两次。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "need": ["floor"],
+        "act": 2,
+        "diff": 2,
+        "k": "羞耻姿势",
+        "t": "侧躺在地上，把一条腿抬高给镜头，慢撸三十下后放下腿停手。抬着的时候腿不许落地。",
+        "o": 2, "s": 4, "h": 4
+      },
+      {
+        "need": ["toilet"],
+        "act": 1,
+        "diff": 1,
+        "k": "羞耻姿势",
+        "t": "盖上马桶盖坐下，双腿分开，手撑住两边。听三秒门外有没有声音，然后抬头说「还在这里」。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "need": ["sink"],
+        "act": 1,
+        "diff": 1,
+        "k": "羞耻姿势",
+        "t": "到洗手台前把水开到最小，冲一下手，抬头看镜头说「洗完手了」。水立刻关掉。",
+        "o": 1, "s": 3, "h": 2
       }
     ],
     "combo": [
@@ -462,9 +1073,685 @@
       {
         "act": 2,
         "k": "夹子",
-        "needCond": ["clips"],
+        "needCond": ["stationery"],
         "t": "夹子还在时慢撸十五下；若已摘掉就先夹上再撸。撸完摘掉夹子揉一揉，说「玩具也要收好」。",
         "o": 3, "s": 5, "h": 4
+      },
+      {
+        "act": 1,
+        "diff": 1,
+        "k": "羞耻姿势",
+        "t": "先跪好抱头三十秒，再趴下把屁股对着镜头十秒，然后跪回来报「三步做完」。全程不许撸。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "act": 1,
+        "diff": 1,
+        "k": "假鸡巴",
+        "needInsert": true,
+        "t": "润滑抹在 {toy} 和入口，用头部在穴口画圈十五下，不许推进去。画完说「进门还要等命令」。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "act": 2,
+        "diff": 2,
+        "k": "龟头责",
+        "t": "两指揉龟头二十下，停手，再把蛋托起来展示十秒。说「前面先听话」。",
+        "o": 2, "s": 4, "h": 4
+      },
+      {
+        "act": 3,
+        "diff": 3,
+        "k": "边缘",
+        "hi": 1,
+        "t": "快撸到边缘立刻停，双手抱头数十秒，再慢撸到边缘再停。两轮都忍住，说「射精权不在自己手里」。",
+        "o": 3, "s": 5, "h": 6
+      },
+      {
+        "act": 1,
+        "diff": 1,
+        "k": "夹子",
+        "needCond": ["stationery"],
+        "t": "把夹子夹在能承受的地方（乳头或包皮），只展示五秒就摘掉，揉一揉说「先试力度」。受不了立刻摘。",
+        "o": 2, "s": 3, "h": 2
+      },
+      {
+        "act": 3,
+        "diff": 3,
+        "k": "夹子",
+        "needCond": ["stationery"],
+        "hi": 1,
+        "t": "夹子夹好后慢撸到边缘立刻停，停的时候夹子不许摘。缓十秒再夹着做第二轮，两轮都停住才算完。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "act": 3,
+        "diff": 3,
+        "k": "假鸡巴",
+        "needInsert": true,
+        "hi": 1,
+        "t": "含着 {toy} 跪趴，按慢—快—停做三轮：慢八下、快八下、含住停五秒。三轮做完可以退出到只剩头部，但不要完全拔出。",
+        "o": 3, "s": 6, "h": 6
+      },
+      {
+        "act": 2,
+        "diff": 2,
+        "k": "马桶",
+        "need": ["toilet"],
+        "needCond": ["toilet"],
+        "t": "跪在马桶前，把手放在座圈两侧，低头看水面十秒，然后抬头说「狗知道自己该待在哪」。不许舔。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "sock_toilet",
+        "act": 1,
+        "diff": 1,
+        "k": "袜子",
+        "cross": "sock_toilet",
+        "need": ["toilet"],
+        "needCond": ["toilet"],
+        "needKinks": ["袜子"],
+        "t": "脱下一只袜子，叠好放在合上的马桶盖上。跪着看十秒，说「脏东西放一起了」。这一条不许舔，也不许把袜子扔进马桶。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "sock_toilet",
+        "act": 1,
+        "diff": 1,
+        "k": "袜子",
+        "cross": "sock_toilet",
+        "need": ["toilet"],
+        "needCond": ["toilet"],
+        "needKinks": ["袜子"],
+        "t": "跪在马桶边，袜底对着座圈但不要碰上。先闻袜子一口，再说「厕所和袜子，今晚都在」。反胃就抬头。",
+        "o": 2, "s": 5, "h": 2
+      },
+      {
+        "part": "sock_toilet",
+        "act": 2,
+        "diff": 2,
+        "k": "袜子",
+        "cross": "sock_toilet",
+        "need": ["toilet"],
+        "needCond": ["toilet"],
+        "needKinks": ["袜子"],
+        "t": "穿过的袜子搭在座圈上。脸凑近，袜子和座圈各闻两口，说「分不清哪个更骚」。不要舔。",
+        "o": 2, "s": 6, "h": 3
+      },
+      {
+        "part": "sock_toilet",
+        "act": 2,
+        "diff": 2,
+        "k": "袜子",
+        "cross": "sock_toilet",
+        "need": ["toilet"],
+        "needCond": ["toilet"],
+        "needKinks": ["袜子"],
+        "t": "一只袜子褪到脚背，脚踩在合上的马桶盖边缘。另一只袜子叼在嘴里，保持十五秒。站不稳就跪下做。",
+        "o": 2, "s": 6, "h": 3
+      },
+      {
+        "part": "sock_toilet",
+        "act": 3,
+        "diff": 3,
+        "k": "袜子",
+        "cross": "sock_toilet",
+        "need": ["toilet"],
+        "needCond": ["toilet"],
+        "needKinks": ["袜子"],
+        "hi": 1,
+        "t": "袜子塞进嘴里，跪在座圈前。先闻座圈，再隔着袜子喘气十秒。吐出来给镜头看湿痕。恶心就立刻吐掉，不许硬含。",
+        "o": 3, "s": 7, "h": 4
+      },
+      {
+        "part": "sock_toilet",
+        "act": 3,
+        "diff": 3,
+        "k": "袜子",
+        "cross": "sock_toilet",
+        "need": ["toilet"],
+        "needCond": ["toilet"],
+        "needKinks": ["袜子"],
+        "hi": 1,
+        "t": "用袜子擦座圈外侧一圈，不要擦到内沿和水面。擦完把这只袜子套回脚上，走两步，说「脚也进过厕所了」。反胃就停，换一只干净的。",
+        "o": 3, "s": 7, "h": 4
+      },
+      {
+        "part": "sock_drink",
+        "act": 1,
+        "diff": 1,
+        "k": "饮尿",
+        "cross": "sock_drink",
+        "needCond": ["wet"],
+        "needKinks": ["袜子", "饮尿"],
+        "t": "尿进杯子。袜子盖在杯口上，只让几滴沾到袜面。闻湿掉的那一块，这一条不喝。说「袜子先沾上了」。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "sock_drink",
+        "act": 1,
+        "diff": 1,
+        "k": "饮尿",
+        "cross": "sock_drink",
+        "needCond": ["wet"],
+        "needKinks": ["袜子", "饮尿"],
+        "t": "袜子脱下来捏在手里，杯子举到袜子旁边给镜头看。只报「还没混在一起」。喝不喝留到后面。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "sock_drink",
+        "act": 2,
+        "diff": 2,
+        "k": "饮尿",
+        "cross": "sock_drink",
+        "needCond": ["wet"],
+        "needKinks": ["袜子", "饮尿"],
+        "t": "袜底接几滴尿，穿回脚上走两步。再从杯子里抿一小口，可以只含住再吐掉。说「上面下面都是」。做不到就只穿湿袜子，把尿倒掉。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "sock_drink",
+        "act": 2,
+        "diff": 2,
+        "k": "饮尿",
+        "cross": "sock_drink",
+        "needCond": ["wet"],
+        "needKinks": ["袜子", "饮尿"],
+        "t": "袜子揉松，在杯沿蘸一下，然后凑到鼻子前闻十秒。闻完决定抿一口或吐掉。说「味道过到袜子上了」。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "sock_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "饮尿",
+        "cross": "sock_drink",
+        "needCond": ["wet"],
+        "needKinks": ["袜子", "饮尿"],
+        "hi": 1,
+        "t": "袜子揉团，沾上自己的尿，含进嘴里十秒。同时杯子里剩下的抿一口或吐掉。含完拿出来给镜头看。做不到就只含干袜子，尿全部吐掉。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "sock_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "饮尿",
+        "cross": "sock_drink",
+        "needCond": ["wet"],
+        "needKinks": ["袜子", "饮尿"],
+        "hi": 1,
+        "t": "湿袜子套回一只脚。单脚站稳或扶着跪好，边闻袜口边把杯里的尿喝完或吐进水池。说「脚和嘴一起领了」。中途想吐就停。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "sock_insert",
+        "act": 1,
+        "diff": 1,
+        "k": "袜子",
+        "cross": "sock_insert",
+        "needInsert": true,
+        "needKinks": ["袜子"],
+        "t": "袜子套在 {toy} 头部，只在穴口蹭十下，不推进去。说「套子先报到」。",
+        "o": 2, "s": 4, "h": 3
+      },
+      {
+        "part": "sock_insert",
+        "act": 2,
+        "diff": 2,
+        "k": "袜子",
+        "cross": "sock_insert",
+        "needInsert": true,
+        "needKinks": ["袜子"],
+        "t": "一只袜子含在嘴里。把 {toy} 推进到能承受的深度，含住不动数十五秒。袜子不许掉。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "sock_insert",
+        "act": 3,
+        "diff": 3,
+        "k": "袜子",
+        "cross": "sock_insert",
+        "needInsert": true,
+        "needKinks": ["袜子"],
+        "hi": 1,
+        "t": "袜子仍含着，按慢节拍抽插十二下，每四下用鼻子哼一声。抽完才许把袜子拿出来。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "sock_clip",
+        "act": 1,
+        "diff": 1,
+        "k": "夹子",
+        "cross": "sock_clip",
+        "needCond": ["stationery"],
+        "needKinks": ["袜子", "夹子"],
+        "t": "袜底垫在夹子和乳头之间，轻轻夹上五秒就摘。说「隔着袜子试力度」。痛就立刻摘。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "sock_clip",
+        "act": 2,
+        "diff": 2,
+        "k": "夹子",
+        "cross": "sock_clip",
+        "needCond": ["stationery"],
+        "needKinks": ["袜子", "夹子"],
+        "t": "一边乳头夹上夹子，袜子含在嘴里。挺胸数到十五。夹子或袜子要掉就停下重来，痛了先摘夹子。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "sock_clip",
+        "act": 3,
+        "diff": 3,
+        "k": "夹子",
+        "cross": "sock_clip",
+        "needCond": ["stationery"],
+        "needKinks": ["袜子", "夹子"],
+        "hi": 1,
+        "t": "夹子还在，袜子蒙住眼睛，慢撸到边缘立刻停。停住才许摘夹子、拿开袜子。受不了就先摘夹子。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "sock_write",
+        "act": 1,
+        "diff": 1,
+        "k": "身体涂写",
+        "cross": "sock_write",
+        "needCond": ["stationery"],
+        "needKinks": ["袜子", "身体涂写"],
+        "t": "在袜底写一个「狗」，翻给镜头看，再套回脚上。说「字踩在脚底下」。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "sock_write",
+        "act": 2,
+        "diff": 2,
+        "k": "身体涂写",
+        "cross": "sock_write",
+        "needCond": ["stationery"],
+        "needKinks": ["袜子", "身体涂写"],
+        "t": "穿着袜子，在小腿上写「自用」。写完把袜口褪下来，让字露在袜口上面给镜头看。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "sock_write",
+        "act": 3,
+        "diff": 3,
+        "k": "身体涂写",
+        "cross": "sock_write",
+        "needCond": ["stationery"],
+        "needKinks": ["袜子", "身体涂写"],
+        "hi": 1,
+        "t": "袜底写上「公用」再穿上。慢撸到边缘停住，停的时候抬脚，让字对着镜头。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "write_toilet",
+        "act": 1,
+        "diff": 1,
+        "k": "身体涂写",
+        "cross": "write_toilet",
+        "need": ["toilet"],
+        "needCond": ["stationery", "toilet"],
+        "needKinks": ["身体涂写"],
+        "t": "在大腿上写「厕」。跪在合上的马桶盖前，让字对着镜头十秒。不许舔。",
+        "o": 2, "s": 5, "h": 2
+      },
+      {
+        "part": "write_toilet",
+        "act": 2,
+        "diff": 2,
+        "k": "身体涂写",
+        "cross": "write_toilet",
+        "need": ["toilet"],
+        "needCond": ["stationery", "toilet"],
+        "needKinks": ["身体涂写"],
+        "t": "小腹写「座圈」。跪在打开的马桶前，字朝下对着座圈，保持十五秒。只看，不碰水面。",
+        "o": 2, "s": 6, "h": 3
+      },
+      {
+        "part": "write_toilet",
+        "act": 3,
+        "diff": 3,
+        "k": "身体涂写",
+        "cross": "write_toilet",
+        "need": ["toilet"],
+        "needCond": ["stationery", "toilet"],
+        "needKinks": ["身体涂写"],
+        "hi": 1,
+        "t": "大腿内侧写「检阅」，M 字跪在座圈前。先闻座圈，再让字入镜。反胃就抬头，字可以留着。",
+        "o": 3, "s": 7, "h": 4
+      },
+      {
+        "part": "write_drink",
+        "act": 1,
+        "diff": 1,
+        "k": "饮尿",
+        "cross": "write_drink",
+        "needCond": ["stationery", "wet"],
+        "needKinks": ["身体涂写", "饮尿"],
+        "t": "胸口写「杯」。把杯子举到字旁边给镜头看。这一条不喝。说「字比尿先到」。",
+        "o": 2, "s": 5, "h": 2
+      },
+      {
+        "part": "write_drink",
+        "act": 2,
+        "diff": 2,
+        "k": "饮尿",
+        "cross": "write_drink",
+        "needCond": ["stationery", "wet"],
+        "needKinks": ["身体涂写", "饮尿"],
+        "t": "小腹写「抿」。字还在时抿一小口，或只含住再吐掉。说「字看着我喝」。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "write_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "饮尿",
+        "cross": "write_drink",
+        "needCond": ["stationery", "wet"],
+        "needKinks": ["身体涂写", "饮尿"],
+        "hi": 1,
+        "t": "大腿写「饮」，字对着镜头。把杯里的喝完或吐进水池。中途想吐就停，字不许擦。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "clip_drink",
+        "act": 1,
+        "diff": 1,
+        "k": "夹子",
+        "cross": "clip_drink",
+        "needCond": ["stationery", "wet"],
+        "needKinks": ["夹子", "饮尿"],
+        "t": "夹子夹在能承受的乳头上，把杯子举到夹子旁边。这一条不喝。痛就摘。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "clip_drink",
+        "act": 2,
+        "diff": 2,
+        "k": "夹子",
+        "cross": "clip_drink",
+        "needCond": ["stationery", "wet"],
+        "needKinks": ["夹子", "饮尿"],
+        "t": "夹着乳头，抿一小口，或只含住再吐掉。抿的时候不许摘夹子。受不了就先摘再吐掉。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "clip_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "夹子",
+        "cross": "clip_drink",
+        "needCond": ["stationery", "wet"],
+        "needKinks": ["夹子", "饮尿"],
+        "hi": 1,
+        "t": "夹子还在，慢撸到边缘停住。停的时候把杯子里的喝完或吐掉。做不到就先摘夹子，尿可以吐掉。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "clip_insert",
+        "act": 1,
+        "diff": 1,
+        "k": "夹子",
+        "cross": "clip_insert",
+        "needInsert": true,
+        "needCond": ["stationery"],
+        "needKinks": ["夹子"],
+        "t": "夹子夹在乳头上，{toy} 只抵在入口，不插入。夹着给镜头看五秒。痛就先摘夹子。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "clip_insert",
+        "act": 2,
+        "diff": 2,
+        "k": "夹子",
+        "cross": "clip_insert",
+        "needInsert": true,
+        "needCond": ["stationery"],
+        "needKinks": ["夹子"],
+        "t": "夹着，把 {toy} 慢慢推进去，含住不动数十五秒。不许加快。痛了先摘夹子，玩具可以留着。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "clip_insert",
+        "act": 3,
+        "diff": 3,
+        "k": "夹子",
+        "cross": "clip_insert",
+        "needInsert": true,
+        "needCond": ["stationery"],
+        "needKinks": ["夹子"],
+        "hi": 1,
+        "t": "夹子留着，慢抽插十下。想加快之前必须先摘掉夹子。抽完才许摘。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "insert_toilet",
+        "act": 1,
+        "diff": 1,
+        "k": "假鸡巴",
+        "cross": "insert_toilet",
+        "need": ["toilet"],
+        "needInsert": true,
+        "needCond": ["toilet"],
+        "t": "{toy} 放在合上的马桶盖上，跪在旁边看十秒。说「玩具也进了厕所」。这一条不插入。",
+        "o": 2, "s": 5, "h": 2
+      },
+      {
+        "part": "insert_toilet",
+        "act": 2,
+        "diff": 2,
+        "k": "假鸡巴",
+        "cross": "insert_toilet",
+        "need": ["toilet"],
+        "needInsert": true,
+        "needCond": ["toilet"],
+        "t": "坐在合上的马桶盖上，把 {toy} 含进后面，坐稳十五秒。盖要合着，不许打开。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "insert_toilet",
+        "act": 3,
+        "diff": 3,
+        "k": "假鸡巴",
+        "cross": "insert_toilet",
+        "need": ["toilet"],
+        "needInsert": true,
+        "needCond": ["toilet"],
+        "hi": 1,
+        "t": "跪在座圈前，含着 {toy} 先闻座圈，再慢抽五下。反胃就停抽，玩具可以留着。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "insert_drink",
+        "act": 1,
+        "diff": 1,
+        "k": "饮尿",
+        "cross": "insert_drink",
+        "needInsert": true,
+        "needCond": ["wet"],
+        "needKinks": ["饮尿"],
+        "t": "含着 {toy} 不动，杯子举到镜头前。这一条不喝。说「后面先吃，嘴还等着」。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "insert_drink",
+        "act": 2,
+        "diff": 2,
+        "k": "饮尿",
+        "cross": "insert_drink",
+        "needInsert": true,
+        "needCond": ["wet"],
+        "needKinks": ["饮尿"],
+        "t": "玩具含在里面，抿一小口或吐掉，然后再慢抽五下。呛了就先停抽。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "insert_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "饮尿",
+        "cross": "insert_drink",
+        "needInsert": true,
+        "needCond": ["wet"],
+        "needKinks": ["饮尿"],
+        "hi": 1,
+        "t": "慢抽插的时候把杯子里的喝完或吐掉。不要边抽边呛，呛了就先把玩具停住。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "tape_toilet",
+        "act": 1,
+        "diff": 1,
+        "k": "胶带",
+        "cross": "tape_toilet",
+        "need": ["toilet"],
+        "needCond": ["stationery", "toilet"],
+        "needKinks": ["胶带"],
+        "t": "一小条胶带贴在合上的马桶盖上。跪着看十秒再撕掉。不要贴座圈内沿。",
+        "o": 2, "s": 4, "h": 2
+      },
+      {
+        "part": "tape_toilet",
+        "act": 2,
+        "diff": 2,
+        "k": "胶带",
+        "cross": "tape_toilet",
+        "need": ["toilet"],
+        "needCond": ["stationery", "toilet"],
+        "needKinks": ["胶带"],
+        "t": "胶带贴在座圈外侧，跪着数到十五，数完从一角撕掉。",
+        "o": 2, "s": 6, "h": 3
+      },
+      {
+        "part": "tape_toilet",
+        "act": 3,
+        "diff": 3,
+        "k": "胶带",
+        "cross": "tape_toilet",
+        "need": ["toilet"],
+        "needCond": ["stationery", "toilet"],
+        "needKinks": ["胶带"],
+        "hi": 1,
+        "t": "座圈外侧留着那条胶带，慢撸到边缘停住，停完才撕。反胃就先撕掉再停手。",
+        "o": 3, "s": 6, "h": 5
+      },
+      {
+        "part": "foot_drink",
+        "act": 1,
+        "diff": 1,
+        "k": "脚",
+        "cross": "foot_drink",
+        "needCond": ["wet"],
+        "needKinks": ["脚", "饮尿"],
+        "t": "脚心接两三滴尿，闻脚心。这一条不喝。说「脚先领了」。",
+        "o": 2, "s": 5, "h": 3
+      },
+      {
+        "part": "foot_drink",
+        "act": 2,
+        "diff": 2,
+        "k": "脚",
+        "cross": "foot_drink",
+        "needCond": ["wet"],
+        "needKinks": ["脚", "饮尿"],
+        "t": "沾湿的脚趾点一下杯沿，再决定抿一小口或吐掉。站不稳就坐下做。",
+        "o": 3, "s": 6, "h": 4
+      },
+      {
+        "part": "foot_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "脚",
+        "cross": "foot_drink",
+        "needCond": ["wet"],
+        "needKinks": ["脚", "饮尿"],
+        "hi": 1,
+        "t": "脚心还湿着，抬到镜头前，同时把杯子喝完或吐进水池。想吐就停，脚可以先放下。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "sock_clip_insert",
+        "act": 3,
+        "diff": 3,
+        "k": "夹子",
+        "cross": "sock_clip_insert",
+        "needInsert": true,
+        "needCond": ["stationery"],
+        "needKinks": ["袜子", "夹子"],
+        "hi": 1,
+        "t": "袜子含在嘴里。夹子夹在能承受的乳头上。含着 {toy} 慢抽插十下，每五下停一下。痛了先摘夹子，袜子可以吐出，抽插不许加快。",
+        "o": 3, "s": 7, "h": 6
+      },
+      {
+        "part": "sock_clip_insert",
+        "act": 3,
+        "diff": 3,
+        "k": "夹子",
+        "cross": "sock_clip_insert",
+        "needInsert": true,
+        "needCond": ["stationery"],
+        "needKinks": ["袜子", "夹子"],
+        "hi": 1,
+        "t": "一只袜子蒙住眼睛，夹子夹着，{toy} 先含住不动数十五秒，再慢抽五下。卸的顺序是夹子、停抽、拿开袜子。中途受不了就按这个顺序停。",
+        "o": 3, "s": 7, "h": 6
+      },
+      {
+        "part": "write_toilet_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "饮尿",
+        "cross": "write_toilet_drink",
+        "need": ["toilet"],
+        "needCond": ["stationery", "toilet", "wet"],
+        "needKinks": ["身体涂写", "饮尿"],
+        "hi": 1,
+        "t": "大腿内侧写「检阅」，M 字跪在座圈前让字入镜。然后把杯里的尿喝完，或吐进马桶。字不许擦。反胃就抬头，尿可以全部吐掉。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "write_toilet_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "饮尿",
+        "cross": "write_toilet_drink",
+        "need": ["toilet"],
+        "needCond": ["stationery", "toilet", "wet"],
+        "needKinks": ["身体涂写", "饮尿"],
+        "hi": 1,
+        "t": "小腹写「座圈」。跪着让字对着打开的座圈，闻一口，再抿一口或吐掉。字、座圈、杯子三步都做完才算，喝可以换成吐。",
+        "o": 3, "s": 7, "h": 5
+      },
+      {
+        "part": "insert_toilet_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "假鸡巴",
+        "cross": "insert_toilet_drink",
+        "need": ["toilet"],
+        "needInsert": true,
+        "needCond": ["toilet", "wet"],
+        "needKinks": ["饮尿"],
+        "hi": 1,
+        "t": "跪在座圈前，含着 {toy} 慢抽五下，杯子放在手边。抽完把尿喝完或倒进马桶。呛了先停抽，盖不要打开到水面溅出来。",
+        "o": 3, "s": 7, "h": 6
+      },
+      {
+        "part": "insert_toilet_drink",
+        "act": 3,
+        "diff": 3,
+        "k": "假鸡巴",
+        "cross": "insert_toilet_drink",
+        "need": ["toilet"],
+        "needInsert": true,
+        "needCond": ["toilet", "wet"],
+        "needKinks": ["饮尿"],
+        "hi": 1,
+        "t": "坐在合上的马桶盖上含着 {toy}，另一只手举着杯子。先慢抽八下，再把杯子喝完或吐掉。盖保持合上。想吐就先停抽。",
+        "o": 3, "s": 7, "h": 6
       }
     ],
     "rules": [

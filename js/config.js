@@ -96,6 +96,14 @@ export function updateScenarioPreview(scenarios) {
       ? null
       : (scenarios.locations || []).find((l) => l.id === locId);
   const locLabel = loc ? loc.label : '随机地点';
+  const propLabel = {
+    door: '门口', desk: '桌边', bed: '床上', mirror: '镜前',
+    toilet: '马桶边', shower: '淋浴区', floor: '地上',
+    sofa: '沙发', stall: '隔间', sink: '洗手台'
+  };
+  const routeBit = (loc && loc.route && loc.route.length)
+    ? loc.route.map((id) => propLabel[id] || id).join(' → ')
+    : '';
   const randomAll = !!document.getElementById('scenarioRandomAll')?.checked;
   const toyCount = [
     ...document.querySelectorAll('#scenarioToyGrid input[type=checkbox][data-toy]:checked')
@@ -105,7 +113,7 @@ export function updateScenarioPreview(scenarios) {
     el.textContent =
       (locId === 'random'
         ? '将生成：全部随机（地点 + 条件）'
-        : '将生成：' + locLabel + ' · 条件随机') +
+        : '将生成：' + locLabel + (routeBit ? ' · ' + routeBit : '') + ' · 条件随机') +
       ' · ' +
       toyBit;
     return;
@@ -117,6 +125,7 @@ export function updateScenarioPreview(scenarios) {
   el.textContent =
     '将生成：' +
     locLabel +
+    (routeBit ? ' · ' + routeBit : '') +
     (bits.length ? ' · 必上场 ' + bits.join(' / ') : ' · 基础指令') +
     ' · ' +
     toyBit;
@@ -185,7 +194,11 @@ export function renderScenarioUI(scenarios, overrides, kinksCatalog) {
   condRoot.innerHTML = '';
   (scenarios.conditions || []).forEach((c) => {
     const kinkOk = kinkNeedsMet(c.needsKink, enabledMap, kinksCatalog);
-    const on = savedCond[c.id] !== undefined ? !!savedCond[c.id] : !!c.default;
+    let on;
+    if (savedCond[c.id] !== undefined) on = !!savedCond[c.id];
+    else if (c.id === 'stationery' && (savedCond.clips !== undefined || savedCond.writing !== undefined)) {
+      on = !!savedCond.clips || !!savedCond.writing;
+    } else on = !!c.default;
     const lab = document.createElement('label');
     lab.className = 'scenario-chip' + (on && kinkOk ? ' on' : '') + (!kinkOk ? ' dim' : '');
     lab.innerHTML = `<input type="checkbox" data-cond="${c.id}" data-label="${c.label}" data-kink-blocked="${kinkOk ? '0' : '1'}" ${on && kinkOk ? 'checked' : ''} ${!kinkOk ? 'disabled' : ''}/><span>${c.label}${!kinkOk ? '（需开癖好）' : '（勾选必上场）'}</span>`;
@@ -273,7 +286,18 @@ export function applyOverridesToUI(site, kinks, overrides, scenarios) {
   const grid = document.getElementById('kinkGrid');
   if (grid) {
     grid.innerHTML = '';
+    const loose = [];
+    const groups = [];
+    const byName = {};
     for (const k of kinks.filter((x) => !x.featured)) {
+      if (!k.group) { loose.push(k); continue; }
+      if (!byName[k.group]) {
+        byName[k.group] = [];
+        groups.push({ name: k.group, items: byName[k.group] });
+      }
+      byName[k.group].push(k);
+    }
+    const appendKink = (k) => {
       const on = enabledMap[k.id] !== undefined ? !!enabledMap[k.id] : k.enabled !== false;
       const lab = document.createElement('label');
       lab.className = 'kink-item' + (on ? ' on' : '');
@@ -283,7 +307,15 @@ export function applyOverridesToUI(site, kinks, overrides, scenarios) {
         lab.classList.toggle('on', cb.checked);
       });
       grid.appendChild(lab);
-    }
+    };
+    loose.forEach(appendKink);
+    groups.forEach((g) => {
+      const h = document.createElement('div');
+      h.className = 'kink-group-label';
+      h.textContent = g.name;
+      grid.appendChild(h);
+      g.items.forEach(appendKink);
+    });
   }
   if (scenarios) renderScenarioUI(scenarios, overrides, kinks);
 }
