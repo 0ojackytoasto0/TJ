@@ -979,6 +979,7 @@ function callSpeakTask(task,extra){
   if(react)bits.push(react);
   if(improv)bits.push(improv);
   if(task.stayPlugNote)bits.push(task.stayPlugNote);
+  if(task.sockMouthNote)bits.push(task.sockMouthNote);
   if(Math.random()<0.6)bits.push(callCheckInLine());
   if(Math.random()<0.16)bits.push('不对——');
   if(papa)bits.push(papa);
@@ -1213,12 +1214,13 @@ function buildScenarioSession(sc){
     const arcKey=hard?'hard':'easy';
     beats=(raw&&raw.arcs&&raw.arcs[arcKey])?raw.arcs[arcKey].slice():null;
     if(!beats||!beats.length){
-      return buildCallScheduleLegacy().map(function(s){return makeStage(s.type,s.act);});
+      return maybeBiteSockTillEnd(buildCallScheduleLegacy().map(function(s){return makeStage(s.type,s.act);}));
     }
     if(skipIntroSel)beats=beats.filter(function(b){return b!=='rules';});
   }
   const wantInsert=scenarioInsertAllowed(sc);
   S.stayPluggedForeplay=false;
+  S.sockInMouth=false;
   // 开了插入：跟节拍的环节改成抽插，并按出现顺序从浅到深
   // 节奏穿在动线里，插在哪段，抽插准备就跟在哪段前面
   if(wantInsert){
@@ -1563,6 +1565,45 @@ function buildScenarioSession(sc){
       if(!s.label||s.label.indexOf(lab)!==0)s.label=lab+' · '+(s.label||stageLabelOf(s.type));
     });
   }
+  return maybeBiteSockTillEnd(stages);
+}
+/** 开了袜子时，约一半通话在中段咬上，含到挂断。 */
+function maybeBiteSockTillEnd(stages){
+  S.sockInMouth=false;
+  if(!isCall()||!kinkOn('袜子')||!stages||!stages.length)return stages;
+  if(S.scenario&&(S.scenario.incompatible||[]).indexOf('袜子')>=0)return stages;
+  if(Math.random()>=0.45)return stages;
+  let lo=0;
+  stages.forEach(function(s,i){
+    if(s.type==='intro'||s.type==='rules'||s.type==='arrive')lo=i+1;
+  });
+  let hi=stages.findIndex(function(s){return s.type==='climax';});
+  if(hi<0)hi=stages.length;
+  if(hi-lo<3)return stages;
+  const at=Math.min(hi-1,lo+Math.floor((hi-lo)*0.45)+R(0,Math.max(0,Math.floor((hi-lo)*0.12))));
+  const here=stages[at]||stages[at-1];
+  const task={
+    papa:'袜子叼上。',
+    t:'脱下一只穿过的袜子，咬在嘴里。从现在起到这通挂断，不许吐。说话含糊没关系。喘不上气或恶心，就安全挂断。',
+    k:'袜子',
+    o:2,s:4,h:3,
+    sockBite:true
+  };
+  if(here&&here.spot){
+    task.spot=here.spot;
+    task.t='人留在'+propLabel(here.spot)+'。'+task.t;
+  }
+  const stg=makeScenarioStage('place_task',(here&&here.act)||2,[task]);
+  stg.label='咬着袜子';
+  if(here&&here.spot)stg.spot=here.spot;
+  const notes=['袜子还咬着，别吐。','嘴里那只含到挂断。','说话可以含糊，袜子不许拿出来。'];
+  stages.splice(at,0,stg);
+  for(let i=at+1;i<stages.length;i++){
+    (stages[i].tasks||[]).forEach(function(t){
+      if(t&&!t.sockMouthNote)t.sockMouthNote=pick(notes);
+    });
+  }
+  S.sockInMouth=true;
   return stages;
 }
 /** 旧一对一阶梯（无 scenarios 数据时回退） */
@@ -2316,7 +2357,7 @@ function renderStats(){
     if(isCall())showToast('💦 羞耻爆表','你的脸已经红透了，主人盯着你看。');
     else showToast('💦 羞耻爆表','你的脸已经红透了，观众看得更起劲。');
   }
-  if(s.shame>=90&&!S._tFlags.shame90){S._tFlags.shame90=true;papaToast('羞耻值要爆了，{c}。再继续下去，今晚只能崩溃收场。',3.5);}
+  if(s.shame>=90&&!S._tFlags.shame90&&!isCall()){S._tFlags.shame90=true;papaToast('羞耻值要爆了，{c}。再继续下去，今晚只能崩溃收场。',3.5);}
   const ps=$('pill-shame');
   if(ps)ps.classList.toggle('crash-warn',s.shame>=80);
   if(S.mode==='hard'&&s.stamina!=null&&s.stamina<30&&!S._tFlags.stam30){S._tFlags.stam30=true;papaToast('体力快见底了，{c}。还能撑住吗？',3);}
@@ -2442,10 +2483,12 @@ function renderTask(task){
     const reactHint=S.memory&&S.memory.lastOutcome?memoryReactLine(S.memory.lastOutcome):null;
     const improv=sceneImprovLine(task);
     if(S.memory)S.memory.lastOutcome=null;
-    if(reactHint||improv){
+    const sockNote=task.sockMouthNote||null;
+    if(reactHint||improv||sockNote){
       const tips=[];
       if(reactHint)tips.push(esc(reactHint));
       if(improv)tips.push(esc(improv));
+      if(sockNote)tips.push(esc(sockNote));
       setHtml('tasktext','<div class="follow call-live-tip">'+tips.join(' · ')+'</div>'+esc(P(task.t))+(task.follow?'<div class="follow">追问：'+esc(P(task.follow))+'</div>':''));
     }
     callSpeakTask(task,{react:reactHint,improv:improv});
@@ -2476,7 +2519,7 @@ function startJerk(task){
     :(task.strokeClimax
       ?('高潮收束 · 跟节奏撸 · '+dLab)
       :(rhythm?('跟节奏插入 · '+dLab):(stroke?('跟节奏撸 · '+dLab):(task.climax?'高潮收束 · 倒计时':'倒计时撸管'))));
-  const openLine=rhythm?insertOpen:(stroke?strokeOpen:'跟着节拍撸动，坚持到倒计时结束。');
+  const openLine=(task.sockMouthNote?task.sockMouthNote:'')+(rhythm?insertOpen:(stroke?strokeOpen:'跟着节拍撸动，坚持到倒计时结束。'));
   $('tasktext').textContent=openLine;
   $('kinktag').textContent=task.insertClimax
     ?('🔥 跟节奏插入 · '+dLab)
@@ -2989,7 +3032,7 @@ function failHard(){
     edgePhase=null;
   }
   sfx('fail');booComments();dirtyBurst();
-  if(S.failTotal>=CONFIG.FAIL_SHUTDOWN){startShutdown();return;}
+  if(!isCall()&&S.failTotal>=CONFIG.FAIL_SHUTDOWN){startShutdown();return;}
 
   // 一对一场景：记忆跟进 + 软恢复，不拆剧本
   if(isCall()&&S.scenario){
@@ -3027,8 +3070,8 @@ function afterAction(){
     if(S.avoidTurns<=0)S.avoidKink=null;
   }
   saveGame();renderStats();
-  if(S.mode==='hard'&&S.stats.stamina<=0){startCollapse();return;}
-  if(S.stats.shame>=CONFIG.SHAME_CRASH&&!S.forced){forceAftercare();return;}
+  if(!isCall()&&S.mode==='hard'&&S.stats.stamina<=0){startCollapse();return;}
+  if(!isCall()&&S.stats.shame>=CONFIG.SHAME_CRASH&&!S.forced){forceAftercare();return;}
   const st=S.stages[S.si];
   st.idx++;
   if(st.idx>=st.tasks.length){stageComplete();}
@@ -3154,9 +3197,9 @@ function startShutdown(){showEnding('B');}
 function finishGame(){
   const st=S.stats;
   let type='A';
-  if(S.failTotal>=CONFIG.FAIL_SHUTDOWN)type='B';
-  else if(S.mode==='hard'&&st.stamina<=0)type='D';
-  else if(S.forced||st.shame>=CONFIG.SHAME_CRASH)type='C';
+  if(!isCall()&&S.failTotal>=CONFIG.FAIL_SHUTDOWN)type='B';
+  else if(!isCall()&&S.mode==='hard'&&st.stamina<=0)type='D';
+  else if(!isCall()&&(S.forced||st.shame>=CONFIG.SHAME_CRASH))type='C';
   else if(S.violated)type='G';
   else if(S.finaleType==='deny')type='F';
   else if(S.finaleType==='destroy')type='E';
