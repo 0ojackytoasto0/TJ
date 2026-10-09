@@ -1128,20 +1128,99 @@ function extremeHasUrine(sc){
   if(!scenarioCondOn(sc,'wet'))return false;
   return extremeKinkOk(sc,'尿液')||extremeKinkOk(sc,'饮尿');
 }
+function extremeHasProp(sc,id){
+  return (sc.props||[]).indexOf(id)>=0;
+}
+function extremePackSteps(pack,sc){
+  const sock=extremeKinkOk(sc,'袜子');
+  const toilet=extremeHasProp(sc,'toilet');
+  const mirror=extremeHasProp(sc,'mirror');
+  if(pack==='dump'){
+    const ids=['pee_head','pee_lick'];
+    if(sock&&toilet)ids.push('sock_toilet');
+    else if(sock)ids.push('sock_wipe');
+    return ids;
+  }
+  if(pack==='seat'){
+    const ids=['pee_seat'];
+    if(sock)ids.push('sock_seat');
+    return ids;
+  }
+  if(pack==='body'){
+    const ids=['pee_body','pee_runoff'];
+    if(sock)ids.push('sock_wipe');
+    return ids;
+  }
+  if(pack==='hood')return ['sock_hood'];
+  if(pack==='mirror'){
+    const ids=['pee_mirror'];
+    if(sock)ids.push('sock_face');
+    return ids;
+  }
+  if(pack==='hair')return ['pee_hair','hair_wring'];
+  if(pack==='bowl')return ['pee_bowl','bowl_drink'];
+  if(pack==='briefs_wet')return mirror?['pee_briefs','briefs_mouth']:['pee_briefs_gag'];
+  if(pack==='shoe_wet')return ['pee_shoe','shoe_relace'];
+  if(pack==='sockcock')return ['sock_cock','sock_cock_mouth'];
+  if(pack==='tape_wet')return ['sock_tape_wet'];
+  if(pack==='balcony_wet')return ['sock_balcony'];
+  if(pack==='drain')return ['pee_drain'];
+  if(pack==='gluewet')return ['pee_glue'];
+  if(pack==='briefs_dry')return ['briefs_knees','briefs_gag'];
+  if(pack==='shoe_dry')return ['shoe_head'];
+  if(pack==='blind')return ['sock_blind'];
+  if(pack==='foot')return ['foot_mouth'];
+  if(pack==='sockclip')return ['sock_clip'];
+  if(pack==='write')return ['write_body'];
+  if(pack==='tape_dry')return ['sock_tape_dry'];
+  if(pack==='ruler')return ['ruler_bite'];
+  if(pack==='crawl')return ['crawl_lock'];
+  if(pack==='bark')return sock?['sock','bark_lock']:['bark_lock'];
+  if(pack==='wrists')return ['wrist_tape'];
+  if(pack==='balcony_dry')return ['sock_balcony_dry'];
+  if(pack==='plug')return ['plug_stay'];
+  if(pack==='sock')return ['sock'];
+  return [];
+}
+function extremeFinaleIds(sc){
+  const urine=extremeHasUrine(sc);
+  const sock=extremeKinkOk(sc,'袜子');
+  const mirror=extremeHasProp(sc,'mirror');
+  const stationery=stationeryOn(sc);
+  if(!urine){
+    const packs=['crawl'];
+    if(sock)packs.push('sock','blind');
+    if(extremeKinkOk(sc,'内裤'))packs.push('briefs_dry');
+    if(extremeKinkOk(sc,'鞋子'))packs.push('shoe_dry');
+    if(extremeKinkOk(sc,'脚'))packs.push('foot');
+    if(sock&&extremeKinkOk(sc,'夹子')&&stationery)packs.push('sockclip');
+    if(mirror&&extremeKinkOk(sc,'身体涂写')&&stationery)packs.push('write');
+    if(sock&&extremeKinkOk(sc,'胶带')&&stationery)packs.push('tape_dry');
+    if(extremeKinkOk(sc,'直尺')&&stationery)packs.push('ruler');
+    if(extremeKinkOk(sc,'雄堕'))packs.push('bark');
+    if(extremeKinkOk(sc,'胶带')&&stationery)packs.push('wrists');
+    if(sock&&extremeHasProp(sc,'balcony'))packs.push('balcony_dry');
+    if(scenarioInsertAllowed(sc))packs.push('plug');
+    return extremePackSteps(pick(packs),sc);
+  }
+  const packs=['dump','body','hair','bowl'];
+  if(extremeHasProp(sc,'toilet'))packs.push('seat');
+  if(sock)packs.push('hood','sockcock');
+  if(mirror&&extremeKinkOk(sc,'身体涂写')&&stationery)packs.push('mirror');
+  if(extremeKinkOk(sc,'内裤'))packs.push('briefs_wet');
+  if(extremeKinkOk(sc,'鞋子'))packs.push('shoe_wet');
+  if(sock&&extremeKinkOk(sc,'胶带')&&stationery)packs.push('tape_wet');
+  if(sock&&extremeHasProp(sc,'balcony'))packs.push('balcony_wet');
+  if(extremeHasProp(sc,'shower'))packs.push('drain');
+  if(glueOn(sc)&&(extremeKinkOk(sc,'胶棒')||extremeKinkOk(sc,'胶水')))packs.push('gluewet');
+  return extremePackSteps(pick(packs),sc);
+}
 function extremeStackIds(sc){
   const ids=[];
   if(extremeKinkOk(sc,'橡皮筋')&&stationeryOn(sc))ids.push('band');
   if(extremeKinkOk(sc,'夹子')&&stationeryOn(sc))ids.push('clip');
   if((extremeKinkOk(sc,'胶棒')||extremeKinkOk(sc,'胶水'))&&glueOn(sc))ids.push('glue');
-  const urine=extremeHasUrine(sc);
-  const sock=extremeKinkOk(sc,'袜子');
-  const toilet=(sc.props||[]).indexOf('toilet')>=0;
-  if(urine){
-    ids.push('pee_head');
-    ids.push('pee_lick');
-  }
-  if(sock&&urine&&toilet)ids.push('sock_toilet');
-  else if(sock)ids.push('sock');
+  extremeFinaleIds(sc).forEach(function(id){ids.push(id);});
   if(ids.length)ids.push('check');
   return ids;
 }
@@ -1169,39 +1248,39 @@ function extremeStackTask(id,sc,stages){
   }
   if(id==='band'){
     return {label:'留着橡皮筋',task:{
-      papa:'橡皮筋套上。',
-      t:'橡皮筋松松套在阴茎根部一圈。套上就不摘，留到这通挂断。',
-      k:'橡皮筋',o:2,s:4,h:3,stackStay:'根部的橡皮筋'
+      papa:'橡皮筋勒上。',
+      t:'橡皮筋在阴茎根部连绕三圈，勒紧，再把蛋根勒上一圈。勒到发胀也别松，留到这通挂断。别勒破皮。',
+      k:'橡皮筋',o:2,s:4,h:3,stackStay:'勒着的橡皮筋'
     }};
   }
   if(id==='clip'){
     return {label:'留着夹子',task:{
-      papa:'夹子夹上。',
-      t:'夹子夹在乳头上，或者夹在包皮上。夹上就不摘，留到挂断。',
+      papa:'夹子夹死。',
+      t:'两个乳头都夹上，包皮再夹一个。夹到最紧。三处都留到挂断。别夹破皮。',
       k:'夹子',o:2,s:4,h:3,stackStay:'夹子'
     }};
   }
   if(id==='glue'){
     const stick=extremeKinkOk(sc,'胶棒');
     return {label:'留着胶',task:{
-      papa:'胶留着。',
+      papa:'胶糊上。',
       t:stick
-        ?'胶棒在小腹或大腿内侧涂开，贴上一小张纸。纸和胶都留着，不许撕，挂断再揭。'
-        :'胶水在大腿内侧涂一小块，晾到发黏。不许擦掉，留到挂断。',
+        ?'胶棒从小腹糊到大腿内侧，阴茎上也糊一层，贴上纸捂住。糊满，不许撕，挂断再揭。'
+        :'胶水浇在小腹、大腿内侧和阴茎上，摊开晾到发硬。不许抠，留到挂断。',
       k:stick?'胶棒':'胶水',o:2,s:4,h:3,stackStay:'身上的胶'
     }};
   }
   if(id==='pee_head'){
     return {label:'尿倒头上',task:{
-      papa:'倒在头上。',
-      t:'尿进杯子。这一杯全部倒在自己头上，头发、脸、脖子都浇到。不许擦，留到挂断。',
+      papa:'浇在头上。',
+      t:'尿进杯子，全部浇在头上。揉进头发，从额头抹开到脸上、脖子上。不许擦，留到挂断。',
       k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'头上的尿'
     }};
   }
   if(id==='pee_lick'){
     return {label:'尿倒地上舔',task:{
-      papa:'倒地上舔。',
-      t:'再尿一泡，倒在地上，趴下去舔。嘴上的留着，不许擦。已经留在身上的也不许拿下来。',
+      papa:'舔干净。',
+      t:'再尿一泡在地上，趴下去舔到干，咽下去。嘴上和下巴抹开，不许擦。身上勒着、夹着、糊着的都不许拿。',
       k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'舔过的尿'
     }};
   }
@@ -1211,16 +1290,317 @@ function extremeStackTask(id,sc,stages){
       label:'袜子泡了含着',
       spot:'toilet',
       task:{
-        papa:'袜子泡上再含着。',
-        t:'走到马桶边。脱下一只穿过的袜子，泡进马桶水里。头上和身上的尿留着，也抹一些到袜子上。把这只湿袜子咬进嘴里，含到挂断，不许吐。'+(drink?'再尿一点点进杯子，隔着这只袜子喝掉。':''),
+        papa:'袜子泡透再堵上。',
+        t:'走到马桶边。两只穿过的袜子都按进马桶水里泡透，再浇上尿。一起咬进嘴里堵严，含到挂断，不许吐。头上和身上的尿留着。'+(drink?'再尿满一杯，堵着袜子把那杯喝完。':''),
         k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的湿袜子',sockBite:true
       }
     };
   }
+  if(id==='pee_seat'){
+    return {
+      label:'尿在座圈上',
+      spot:'toilet',
+      task:{
+        papa:'尿在座圈上。',
+        t:'走到马桶边。尿在座圈上，尿到座圈和沿上都是。跪着把座圈舔干净，咽下去。嘴上留着，不许擦。',
+        k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'嘴上的尿'
+      }
+    };
+  }
+  if(id==='sock_seat'){
+    const drink=extremeKinkOk(sc,'饮尿');
+    return {
+      label:'袜子抹座圈再含着',
+      spot:'toilet',
+      task:{
+        papa:'袜子抹上再堵上。',
+        t:'两只穿过的袜子在座圈上抹一遍，再按进马桶水里。一起咬进嘴里堵严，含到挂断，不许吐。'+(drink?'再舀一口到杯子里，堵着袜子喝完。':''),
+        k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的湿袜子',sockBite:true
+      }
+    };
+  }
+  if(id==='pee_body'){
+    return {label:'尿浇在身上',task:{
+      papa:'浇在身上。',
+      t:'尿进杯子，从胸口往下浇，浇过小腹和阴茎，浇在已经留在身上的东西上。用手抹开抹匀。头不要浇。不许擦，留到挂断。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'身上的尿'
+    }};
+  }
+  if(id==='pee_runoff'){
+    return {label:'舔掉流下去的',task:{
+      papa:'舔掉流下去的。',
+      t:'流到地上的那摊趴下去舔干净，咽下去。下巴上的留着，不许擦。身上的也不许擦。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'舔过的尿'
+    }};
+  }
+  if(id==='sock_wipe'){
+    const drink=extremeKinkOk(sc,'饮尿');
+    return {label:'袜子抹开再含着',task:{
+      papa:'袜子抹开再堵上。',
+      t:'用两只穿过的袜子把脸上和身上的尿再抹开一层，不许擦掉。然后把这两只湿袜子咬进嘴里堵严，含到挂断，不许吐。'+(drink?'嘴里把袜子吸干，咽下去。':''),
+      k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的湿袜子',sockBite:true
+    }};
+  }
+  if(id==='sock_hood'){
+    const drink=extremeKinkOk(sc,'饮尿');
+    return {label:'袜子蒙头再含着',task:{
+      papa:'袜子尿透。',
+      t:'尿进两只穿过的袜子里，尿到外层往下滴。一只套在头上蒙住脸，留到挂断。另一只咬进嘴里堵严，不许吐。'+(drink?'嘴里那只吸干，咽下去。':''),
+      k:'袜子',o:3,s:5,h:4,stackStay:'头上和嘴里的湿袜子',sockBite:true
+    }};
+  }
+  if(id==='pee_mirror'){
+    return {
+      label:'字冲花在脸上',
+      spot:'mirror',
+      task:{
+        papa:'写上再冲开。',
+        t:'转到镜子前。额头写下「尿狗」。尿进捧着的手里，抹在那两个字上，抹到字花开、顺着脸往下淌。对着镜子把花掉的字读出来。不许擦，留到挂断。',
+        k:'身体涂写',o:3,s:5,h:4,stackStay:'脸上的字和尿'
+      }
+    };
+  }
+  if(id==='sock_face'){
+    const drink=extremeKinkOk(sc,'饮尿');
+    return {label:'袜子沾脸再含着',task:{
+      papa:'袜子沾脸再堵上。',
+      t:'两只穿过的袜子在脸上沾满那层尿，然后咬进嘴里堵严，含到挂断，不许吐。脸上的留着。'+(drink?'隔着袜子把吸到的咽下去。':''),
+      k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的湿袜子',sockBite:true
+    }};
+  }
+  if(id==='pee_hair'){
+    return {label:'尿浇进头发',task:{
+      papa:'浇进头发。',
+      t:'尿浇在头上，揉进头发，揉到发根都湿。不许擦。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'湿着的头发'
+    }};
+  }
+  if(id==='hair_wring'){
+    return {label:'头发拧进嘴里',task:{
+      papa:'拧进嘴里。',
+      t:'低头，把头发拧到自己嘴里，拧出来的咽下去。头发继续湿着，不许擦，留到挂断。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4
+    }};
+  }
+  if(id==='pee_bowl'){
+    return {label:'尿进杯子',task:{
+      papa:'尿进杯子。',
+      t:'尿满一杯，杯子放在地上。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4
+    }};
+  }
+  if(id==='bowl_drink'){
+    return {label:'狗碗喝完',task:{
+      papa:'用手背过去喝。',
+      t:'手背到身后，只能用嘴把地上那杯喝完，咽下去。喝完把空杯子扣在头上，不许拿下来，留到挂断。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'头上的杯子'
+    }};
+  }
+  if(id==='pee_briefs'){
+    return {label:'尿进内裤',task:{
+      papa:'尿进内裤。',
+      t:'尿进穿过的内裤，立刻穿回去。走到镜子前看着自己。湿内裤先留在身上。',
+      k:'内裤',o:3,s:5,h:4
+    }};
+  }
+  if(id==='briefs_mouth'){
+    return {
+      label:'湿内裤堵嘴',
+      spot:'mirror',
+      task:{
+        papa:'内裤堵住。',
+        t:'把这只湿内裤脱下来塞进嘴里堵住，含到挂断，不许吐。',
+        k:'内裤',o:3,s:5,h:4,stackStay:'嘴里的湿内裤'
+      }
+    };
+  }
+  if(id==='pee_briefs_gag'){
+    return {label:'尿进内裤再堵住',task:{
+      papa:'尿进内裤，再堵住。',
+      t:'尿进穿过的内裤，穿回去给镜头看。再脱下来塞进嘴里堵住，含到挂断，不许吐。',
+      k:'内裤',o:3,s:5,h:4,stackStay:'嘴里的湿内裤'
+    }};
+  }
+  if(id==='pee_shoe'){
+    return {label:'尿进鞋里',task:{
+      papa:'尿进鞋里。',
+      t:'尿进一只鞋，立刻穿上，走两步给镜头看。',
+      k:'鞋子',o:3,s:5,h:4
+    }};
+  }
+  if(id==='shoe_relace'){
+    const bed=extremeHasProp(sc,'bed');
+    return {
+      label:'舔完鞋垫再穿上',
+      spot:bed?'bed':undefined,
+      task:{
+        papa:'舔鞋垫。',
+        t:(bed?'穿着湿鞋走到床上。':'')+'把湿鞋脱下来，鞋垫舔干净，咽下去。然后重新穿上，留到挂断。',
+        k:'鞋子',o:3,s:5,h:4,stackStay:'脚上的湿鞋'
+      }
+    };
+  }
+  if(id==='sock_cock'){
+    return {label:'袜子套上接尿',task:{
+      papa:'袜子套上。',
+      t:'一只穿过的袜子套在阴茎上。尿进这只袜子里，尿到袜子往下滴。先别摘。',
+      k:'袜子',o:3,s:5,h:4
+    }};
+  }
+  if(id==='sock_cock_mouth'){
+    return {label:'湿袜子塞进嘴里',task:{
+      papa:'塞进嘴里。',
+      t:'把这只湿袜子从阴茎上扯下来，塞进嘴里堵严，含到挂断，不许吐。',
+      k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的湿袜子',sockBite:true
+    }};
+  }
+  if(id==='sock_tape_wet'){
+    return {label:'湿袜子封在嘴里',task:{
+      papa:'封上。',
+      t:'尿进穿过的袜子，咬进嘴里堵严。胶带在嘴唇上封一横，鼻子留着。袜子和胶带留到挂断。',
+      k:'袜子',o:3,s:5,h:4,stackStay:'封住的嘴',sockBite:true
+    }};
+  }
+  if(id==='sock_balcony'){
+    return {
+      label:'含着上阳台',
+      spot:'balcony',
+      task:{
+        papa:'上阳台，不许出声。',
+        t:'尿进穿过的袜子，咬进嘴里堵严。走到阳台，门带上。含着站好，到高潮之前不许出声。袜子留到挂断。',
+        k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的湿袜子',sockBite:true
+      }
+    };
+  }
+  if(id==='pee_drain'){
+    return {
+      label:'尿在地漏上舔',
+      spot:'shower',
+      task:{
+        papa:'对着地漏舔。',
+        t:'进淋浴区。尿在地板上，水不要开。跪下去对着地漏舔干净，咽下去。舔完继续跪着，湿着留到挂断。',
+        k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'跪着的湿身子'
+      }
+    };
+  }
+  if(id==='pee_glue'){
+    return {label:'尿浇在胶上',task:{
+      papa:'浇在胶上。',
+      t:'尿浇在已经糊住的胶上，再贴一层纸压住。纸、尿、胶粘成一块，不许揭，留到挂断。',
+      k:extremeKinkOk(sc,'尿液')?'尿液':'饮尿',o:3,s:5,h:4,stackStay:'尿湿的胶'
+    }};
+  }
+  if(id==='briefs_knees'){
+    return {label:'内裤褪到膝盖',task:{
+      papa:'褪到膝盖。',
+      t:'穿过的内裤褪到膝盖，走两步给镜头看。先别提上去。',
+      k:'内裤',o:3,s:4,h:3
+    }};
+  }
+  if(id==='briefs_gag'){
+    return {label:'内裤堵嘴',task:{
+      papa:'内裤堵住。',
+      t:'把这只内裤塞进嘴里堵住，含到挂断，不许吐。',
+      k:'内裤',o:3,s:5,h:4,stackStay:'嘴里的内裤'
+    }};
+  }
+  if(id==='shoe_head'){
+    return {label:'鞋扣在头上',task:{
+      papa:'鞋扣在头上。',
+      t:'把鞋垫舔干净。然后把这只鞋扣在头上，留到挂断，高潮也顶着。',
+      k:'鞋子',o:3,s:5,h:4,stackStay:'头上的鞋'
+    }};
+  }
+  if(id==='sock_blind'){
+    return {label:'一只蒙眼一只堵嘴',task:{
+      papa:'蒙上，再堵住。',
+      t:'一只穿过的袜子蒙住眼睛，另一只咬进嘴里堵严。两只都不许拿，留到挂断。',
+      k:'袜子',o:3,s:5,h:4,stackStay:'蒙眼的袜子和嘴里的袜子',sockBite:true
+    }};
+  }
+  if(id==='foot_mouth'){
+    const sock=extremeKinkOk(sc,'袜子');
+    return {label:'含着脚趾',task:{
+      papa:'含着脚趾。',
+      t:'把一只脚抬到嘴边，含住脚趾，含到挂断。'+(sock?'另一只脚的袜子咬进嘴里，和脚趾一起留着。':''),
+      k:'脚',o:3,s:5,h:4,stackStay:sock?'嘴里的脚趾和袜子':'嘴里的脚趾',sockBite:!!sock
+    }};
+  }
+  if(id==='sock_clip'){
+    return {label:'夹在袜子上再含着',task:{
+      papa:'夹在袜子上。',
+      t:'干袜子套在阴茎上。夹子从袜子外面夹住，夹紧，别夹破皮。然后把袜子扯下来塞进嘴里堵严，夹子留在身上，不许摘。袜子含到挂断。',
+      k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的袜子',sockBite:true
+    }};
+  }
+  if(id==='write_body'){
+    return {
+      label:'字留在身上',
+      spot:'mirror',
+      task:{
+        papa:'写上，读出来。',
+        t:'转到镜子前。额头写「骚狗」，胸口写「主人的」，阴茎上写「狗」。对着镜子读出来。字不许擦，留到挂断。',
+        k:'身体涂写',o:3,s:5,h:4,stackStay:'身上的字'
+      }
+    };
+  }
+  if(id==='sock_tape_dry'){
+    return {label:'袜子封在嘴里',task:{
+      papa:'封上。',
+      t:'穿过的袜子咬进嘴里堵严。胶带在嘴唇上封一横，鼻子留着。袜子和胶带留到挂断。',
+      k:'袜子',o:3,s:5,h:4,stackStay:'封住的嘴',sockBite:true
+    }};
+  }
+  if(id==='ruler_bite'){
+    return {label:'咬着直尺',task:{
+      papa:'直尺咬上。',
+      t:'直尺横着咬在牙上，咬到高潮，不许吐。',
+      k:'直尺',o:3,s:4,h:3,stackStay:'牙上的直尺'
+    }};
+  }
+  if(id==='crawl_lock'){
+    return {label:'跪着爬到结束',task:{
+      papa:'跪下。',
+      t:'从现在起跪下。后面去哪都用膝盖爬，不许站直。高潮也跪着。',
+      k:'羞耻姿势',o:3,s:4,h:3,stackStay:'跪着的姿势'
+    }};
+  }
+  if(id==='bark_lock'){
+    return {label:'只准汪',task:{
+      papa:'只准汪。',
+      t:'从现在起只准汪。问话、报身上还留着什么，都用汪回答，一直到挂断。',
+      k:'雄堕',o:3,s:4,h:3,stackStay:'只准汪'
+    }};
+  }
+  if(id==='wrist_tape'){
+    return {label:'手腕粘住',task:{
+      papa:'手腕粘上。',
+      t:'手腕并拢，用胶带粘死。粘到挂断再撕。后面的节奏就这样撑。',
+      k:'胶带',o:3,s:5,h:4,stackStay:'粘住的手腕'
+    }};
+  }
+  if(id==='sock_balcony_dry'){
+    return {
+      label:'含着上阳台',
+      spot:'balcony',
+      task:{
+        papa:'上阳台，不许出声。',
+        t:'穿过的袜子咬进嘴里堵严。走到阳台，门带上。含着站好，到高潮之前不许出声。袜子留到挂断。',
+        k:'袜子',o:3,s:5,h:4,stackStay:'嘴里的袜子',sockBite:true
+      }
+    };
+  }
+  if(id==='plug_stay'){
+    return {label:'塞子含到挂断',task:{
+      papa:'含上，别拔。',
+      t:'现在把要含着的那根推进去。含到挂断，不许自己拔。后面勒着、夹着、糊着都带着它，高潮也含着。',
+      k:'假鸡巴',o:3,s:5,h:4,stackStay:'含着的塞子'
+    }};
+  }
   if(id==='sock'){
     return {label:'咬着袜子',task:{
-      papa:'袜子叼上。',
-      t:'脱下一只穿过的袜子，咬在嘴里。含到这通挂断，不许吐。说话含糊没关系。',
+      papa:'袜子堵上。',
+      t:'两只穿过的袜子叠起来咬进嘴里堵严，含到这通挂断，不许吐。',
       k:'袜子',o:2,s:4,h:3,stackStay:'嘴里的袜子',sockBite:true
     }};
   }
