@@ -45,6 +45,11 @@ function phrase(txt){
     .replace(/人在线/g,'加密通道');
   return stripExtremeRisk(s);
 }
+function drinkLabel(){
+  var n=(window.TJ&&TJ.drinkName)||'';
+  n=String(n).trim();
+  return n||'啤酒';
+}
 function P(txt){
   var host=hostLabel();
   var nick=(S&&S.nick)||'骚狗';
@@ -52,7 +57,8 @@ function P(txt){
   return phrase(String(txt)
     .replace(/\{n\}/g,nick)
     .replace(/\{c\}/g,pick(names))
-    .replace(/\{host\}/g,host));
+    .replace(/\{host\}/g,host)
+    .replace(/\{liq\}/g,drinkLabel()));
 }
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 function setText(id,txt){var el=$(id);if(el)el.textContent=txt;}
@@ -172,7 +178,7 @@ function themedDraw(poolKey,n,excludeK,extra){
 }
 
 /* ================= 环节 ================= */
-const KINK_ICON={'脚':'👣','袜子':'🧦','内裤':'🩲','鞋子':'👟','龟头责':'🍆','尿液':'💦','睾丸':'🥚','边缘':'🫠','寸止':'✋','肛门':'🍑','羞耻姿势':'🙇','雄堕':'🐶','惩罚':'🌶️','后调':'🕊️','撸管':'💦','边缘·高潮':'🔥','夹子':'🔗','马桶':'🚽','饮尿':'🥂','身体涂写':'🖊️','橡皮筋':'🪢','胶带':'🩹','直尺':'📏','胶水':'🧴','胶棒':'🖍️','假鸡巴':'🍆'};
+const KINK_ICON={'脚':'👣','袜子':'🧦','内裤':'🩲','鞋子':'👟','龟头责':'🍆','尿液':'💦','睾丸':'🥚','边缘':'🫠','寸止':'✋','肛门':'🍑','羞耻姿势':'🙇','雄堕':'🐶','惩罚':'🌶️','后调':'🕊️','撸管':'💦','边缘·高潮':'🔥','夹子':'🔗','马桶':'🚽','饮尿':'🥂','酒':'🍺','身体涂写':'🖊️','橡皮筋':'🪢','胶带':'🩹','直尺':'📏','胶水':'🧴','胶棒':'🖍️','假鸡巴':'🍆'};
 const STATIONERY_KINKS=['夹子','身体涂写','橡皮筋','胶带','直尺'];
 const GLUE_KINKS=['胶水','胶棒'];
 function buildInsertTasks(){
@@ -1713,10 +1719,17 @@ function pickSpotTask(sc,prop,act,lastPart,usedKeys,preferInsert,preferCond){
   }
   let pool=preferCond?gather(true).filter(notUsed):[];
   if(!pool.length)pool=gather(false).filter(notUsed);
-  const shoes=((scenarioData()&&scenarioData().beats&&scenarioData().beats.body)||[]).filter(function(t){
-    return t&&t.k==='鞋子'&&taskNeedOk(t,sc)&&notUsed(t);
-  });
-  pool=pool.concat(shoes);
+  // 鞋子和酒每站都塞进池子会把地点任务挤光，后半场几乎全是它们。只在还有地点任务时偶尔掺一次。
+  if(pool.length&&Math.random()<0.16){
+    const bags=[];
+    ['鞋子','酒'].forEach(function(k){
+      const list=((scenarioData()&&scenarioData().beats&&scenarioData().beats.body)||[]).filter(function(t){
+        return t&&t.k===k&&taskNeedOk(t,sc)&&notUsed(t)&&(!lastPart||t.part!==lastPart);
+      });
+      if(list.length)bags.push(list);
+    });
+    if(bags.length)pool=pool.concat(pick(bags));
+  }
   if(preferInsert===true){
     const hot=pool.filter(isInsertishTask);
     if(hot.length){

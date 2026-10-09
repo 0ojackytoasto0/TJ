@@ -43,6 +43,7 @@ export function buildOverridesFromUI(kinksCatalog) {
   const hostName = (document.getElementById('hostNameIn')?.value || '').trim();
   const callRaw = document.getElementById('callNamesIn')?.value || '';
   const callNames = callRaw.split(/[,，、\n]/).map((s) => s.trim()).filter(Boolean);
+  const drinkName = (document.getElementById('drinkNameIn')?.value || '').trim();
   const enabled = {};
   document.querySelectorAll('#kinkGrid input[type=checkbox], #featuredKinks input[type=checkbox]').forEach((cb) => {
     enabled[cb.dataset.kink] = cb.checked;
@@ -63,6 +64,7 @@ export function buildOverridesFromUI(kinksCatalog) {
   return {
     hostName: hostName || undefined,
     callNames: callNames.length ? callNames : undefined,
+    drinkName: drinkName || undefined,
     enabledKinks: enabled,
     scenarioLocation: location,
     scenarioConditions: conditions,
@@ -269,6 +271,8 @@ export function applyOverridesToUI(site, kinks, overrides, scenarios) {
     const names = (overrides && overrides.callNames) || site.callNames || [];
     callEl.value = names.join('，');
   }
+  const drinkEl = document.getElementById('drinkNameIn');
+  if (drinkEl) drinkEl.value = (overrides && overrides.drinkName) || '啤酒';
   const enabledMap = (overrides && overrides.enabledKinks) || {};
   const featuredRoot = document.getElementById('featuredKinks');
   if (featuredRoot) {

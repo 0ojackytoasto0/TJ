@@ -21,6 +21,7 @@
     { "id": "胶棒", "label": "胶棒", "icon": "🖍️", "enabled": true, "group": "胶水" },
     { "id": "马桶", "label": "马桶", "icon": "🚽", "enabled": true },
     { "id": "饮尿", "label": "饮尿", "icon": "🥂", "enabled": true },
+    { "id": "酒", "label": "酒", "icon": "🍺", "enabled": true },
     {
       "id": "假鸡巴",
       "label": "后庭插入（假鸡巴 / 肛塞）",

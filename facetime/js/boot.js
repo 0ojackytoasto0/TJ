@@ -30,6 +30,7 @@ function syncRuntime(bundle, overrides) {
   window.TJ = window.TJ || {};
   TJ.mode = 'facetime';
   TJ.hostName = host;
+  TJ.drinkName = (overrides && overrides.drinkName) || '啤酒';
   TJ.enabledKinks = enabledKinkSet(bundle.kinks, overrides);
   TJ.preferKinks = new Set();
   TJ.scenarioPrefs = scenarioPrefsFromOverrides(overrides);
@@ -70,6 +71,7 @@ function wireConfigUI(bundle) {
 
   document.getElementById('hostNameIn')?.addEventListener('change', persist);
   document.getElementById('callNamesIn')?.addEventListener('change', persist);
+  document.getElementById('drinkNameIn')?.addEventListener('change', persist);
   document.getElementById('kinkGrid')?.addEventListener('change', persist);
   document.getElementById('featuredKinks')?.addEventListener('change', persist);
   document.getElementById('scenarioLocGrid')?.addEventListener('change', persist);
