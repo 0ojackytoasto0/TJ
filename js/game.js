@@ -1704,8 +1704,19 @@ function pickSpotTask(sc,prop,act,lastPart,usedKeys,preferInsert,preferCond){
     const key=(t.t||'')+(t.part||'');
     return !(usedKeys&&usedKeys[key]);
   }
+  function forAct(list){
+    const a=clamp(act||2,1,3);
+    const exact=list.filter(function(t){return taskDiff(t)===a;});
+    if(exact.length)return exact;
+    if(a>=3)return [];
+    return list.filter(function(t){return diffInWindow(taskDiff(t),act);});
+  }
   let pool=preferCond?gather(true).filter(notUsed):[];
   if(!pool.length)pool=gather(false).filter(notUsed);
+  const shoes=((scenarioData()&&scenarioData().beats&&scenarioData().beats.body)||[]).filter(function(t){
+    return t&&t.k==='鞋子'&&taskNeedOk(t,sc)&&notUsed(t);
+  });
+  pool=pool.concat(shoes);
   if(preferInsert===true){
     const hot=pool.filter(isInsertishTask);
     if(hot.length){
@@ -1716,7 +1727,8 @@ function pickSpotTask(sc,prop,act,lastPart,usedKeys,preferInsert,preferCond){
     const cold=pool.filter(function(t){return !isInsertishTask(t);});
     if(cold.length)pool=cold;
   }
-  const choice=chooseFromPool(pool,act,usedKeys);
+  const scaled=forAct(pool);
+  const choice=scaled.length?chooseFromPool(scaled,act,usedKeys):null;
   if(choice){
     const key=(choice.t||'')+(choice.part||'');
     if(usedKeys)usedKeys[key]=1;
@@ -1820,10 +1832,25 @@ function buildScenarioSession(sc){
   }).length;
   const forcedDone={};
   function bumpAct(i,total){
-    if(total<=4)return i<=1?1:2;
-    if(i/total<0.35)return 1;
-    if(i/total<0.7)return 2;
-    return 3;
+    const extreme=S&&S.mode==='extreme';
+    const easy=S&&S.mode==='easy';
+    let act;
+    if(extreme){
+      if(total<=4)act=i<=0?2:3;
+      else if(i/total<0.2)act=1;
+      else if(i/total<0.45)act=2;
+      else act=3;
+    }else if(total<=4){
+      act=i<=1?1:2;
+    }else if(i/total<0.35){
+      act=1;
+    }else if(i/total<0.7){
+      act=2;
+    }else{
+      act=3;
+    }
+    if(easy)return Math.min(act,2);
+    return act;
   }
   function markForced(task){
     FORCE_CONDS.forEach(function(id){
